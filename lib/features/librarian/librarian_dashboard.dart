@@ -1,92 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/providers/auth_provider.dart';
-
-// ── Models ────────────────────────────────────────────────────────────────────
-
-class LibrarianDashboardData {
-  final int totalBooks;
-  final int borrowedBooks;
-  final int overdueBooks;
-  final int availableBooks;
-  final List<BookCategory> bookCategories;
-  final List<OverdueBorrowing> overdueBorrowings;
-
-  const LibrarianDashboardData({
-    required this.totalBooks,
-    required this.borrowedBooks,
-    required this.overdueBooks,
-    required this.availableBooks,
-    required this.bookCategories,
-    required this.overdueBorrowings,
-  });
-}
-
-class BookCategory {
-  final String name;
-  final double percent;
-  final Color color;
-  const BookCategory(this.name, this.percent, this.color);
-}
-
-class OverdueBorrowing {
-  final String studentName;
-  final String bookTitle;
-  final int daysOverdue;
-  final String dueDate;
-  const OverdueBorrowing(this.studentName, this.bookTitle, this.daysOverdue, this.dueDate);
-}
+import '../../core/services/api_service.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
-final librarianDashboardProvider = FutureProvider<LibrarianDashboardData>((ref) async {
-  try {
-    await Future.delayed(const Duration(milliseconds: 600));
-    throw Exception('Using mock data');
-  } catch (_) {
-    return const LibrarianDashboardData(
-      totalBooks: 3842,
-      borrowedBooks: 318,
-      overdueBooks: 43,
-      availableBooks: 3481,
-      bookCategories: [
-        BookCategory('Fiction', 30.0, AppColors.roleTeacher),
-        BookCategory('Science', 25.0, AppColors.primary),
-        BookCategory('History', 20.0, AppColors.warning),
-        BookCategory('Math', 25.0, AppColors.roleLibrarian),
-      ],
-      overdueBorrowings: [
-        OverdueBorrowing('Kevin Mburu', 'A Brief History of Time', 14, '07 Apr 2025'),
-        OverdueBorrowing('Amina Hassan', 'Things Fall Apart', 11, '10 Apr 2025'),
-        OverdueBorrowing('Samuel Odhiambo', 'Calculus: Early Transcendentals', 9, '12 Apr 2025'),
-        OverdueBorrowing('Lucy Njeri', 'The Great Gatsby', 7, '14 Apr 2025'),
-        OverdueBorrowing('James Maina', 'Sapiens: A Brief History', 5, '16 Apr 2025'),
-        OverdueBorrowing('Fatuma Ali', 'Pride and Prejudice', 3, '18 Apr 2025'),
-      ],
-    );
-  }
+final librarianDashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final res = await ApiService().get('/dashboard');
+  return Map<String, dynamic>.from(res.data as Map);
 });
 
 // ── Dashboard Screen ──────────────────────────────────────────────────────────
 
-class LibrarianDashboard extends ConsumerStatefulWidget {
+class LibrarianDashboard extends ConsumerWidget {
   const LibrarianDashboard({super.key});
 
   @override
-  ConsumerState<LibrarianDashboard> createState() => _LibrarianDashboardState();
-}
-
-class _LibrarianDashboardState extends ConsumerState<LibrarianDashboard> {
-  int _touchedIndex = -1;
-
-  @override
-  Widget build(BuildContext context) {
-    final user = ref.watch(currentUserProvider);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user     = ref.watch(currentUserProvider);
     final dashAsync = ref.watch(librarianDashboardProvider);
 
     return Scaffold(
@@ -111,33 +46,21 @@ class _LibrarianDashboardState extends ConsumerState<LibrarianDashboard> {
                         const SizedBox(height: 24),
                         dashAsync.when(
                           loading: () => _statsShimmer(),
-                          error: (_, __) => _statsShimmer(),
+                          error: (e, _) => _buildError(ref, e),
                           data: (d) => _buildStats(d),
                         ),
                         const SizedBox(height: 24),
-                        SectionHeader(
-                          title: 'Collection by Category',
-                          action: 'Catalogue',
-                          onAction: () => context.push('/librarian/catalogue'),
-                        ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.1),
-                        const SizedBox(height: 12),
-                        dashAsync.when(
-                          loading: () => const ShimmerCard(height: 240),
-                          error: (_, __) => const ShimmerCard(height: 240),
-                          data: (d) => _buildPieChart(d),
-                        ),
-                        const SizedBox(height: 24),
                         SectionHeader(title: 'Quick Actions')
-                            .animate(delay: 300.ms).fadeIn().slideY(begin: 0.1),
+                            .animate(delay: 200.ms).fadeIn().slideY(begin: 0.1),
                         const SizedBox(height: 12),
                         _buildQuickActions(context)
-                            .animate(delay: 350.ms).fadeIn().slideY(begin: 0.1),
+                            .animate(delay: 250.ms).fadeIn().slideY(begin: 0.1),
                         const SizedBox(height: 24),
                         SectionHeader(
                           title: 'Overdue Borrowings',
                           action: 'View All',
-                          onAction: () => context.push('/librarian/overdue'),
-                        ).animate(delay: 400.ms).fadeIn().slideY(begin: 0.1),
+                          onAction: () => context.push('/librarian/books'),
+                        ).animate(delay: 300.ms).fadeIn().slideY(begin: 0.1),
                         const SizedBox(height: 12),
                         dashAsync.when(
                           loading: () => _listShimmer(),
@@ -158,7 +81,7 @@ class _LibrarianDashboardState extends ConsumerState<LibrarianDashboard> {
   }
 
   Widget _buildHeader(user) {
-    final name = user?.name ?? 'Librarian';
+    final name     = user?.name ?? 'Librarian';
     final initials = user?.initials ?? 'L';
     return Row(
       children: [
@@ -203,7 +126,29 @@ class _LibrarianDashboardState extends ConsumerState<LibrarianDashboard> {
     )),
   );
 
-  Widget _buildStats(LibrarianDashboardData d) {
+  Widget _buildError(WidgetRef ref, Object e) => Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(children: [
+        const Icon(Icons.cloud_off_rounded, color: AppColors.textHint, size: 52),
+        const SizedBox(height: 12),
+        const Text('Could not load dashboard', style: TextStyle(color: AppColors.textSecondary)),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () => ref.invalidate(librarianDashboardProvider),
+          child: const Text('Retry'),
+        ),
+      ]),
+    ),
+  );
+
+  Widget _buildStats(Map<String, dynamic> d) {
+    final stats     = d['stats'] as Map? ?? {};
+    final total     = stats['total']     as int? ?? 0;
+    final borrowed  = stats['borrowed']  as int? ?? 0;
+    final overdue   = stats['overdue']   as int? ?? 0;
+    final available = stats['available'] as int? ?? 0;
+
     return GridView.count(
       shrinkWrap: true,
       crossAxisCount: 2,
@@ -212,94 +157,20 @@ class _LibrarianDashboardState extends ConsumerState<LibrarianDashboard> {
       childAspectRatio: 1.4,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        StatCard(label: 'Total Books', value: '${d.totalBooks}', icon: Icons.auto_stories_rounded, color: AppColors.roleLibrarian, index: 0),
-        StatCard(label: 'Borrowed', value: '${d.borrowedBooks}', icon: Icons.import_contacts_rounded, color: AppColors.primary, index: 1),
-        StatCard(label: 'Overdue', value: '${d.overdueBooks}', icon: Icons.schedule_rounded, color: AppColors.error, subtitle: 'Overdue', index: 2),
-        StatCard(label: 'Available', value: '${d.availableBooks}', icon: Icons.library_books_rounded, color: AppColors.success, index: 3),
+        StatCard(label: 'Total Books', value: '$total', icon: Icons.auto_stories_rounded, color: AppColors.roleLibrarian, index: 0),
+        StatCard(label: 'Borrowed', value: '$borrowed', icon: Icons.import_contacts_rounded, color: AppColors.primary, index: 1),
+        StatCard(label: 'Overdue', value: '$overdue', icon: Icons.schedule_rounded, color: AppColors.error, subtitle: overdue > 0 ? 'Overdue' : null, index: 2),
+        StatCard(label: 'Available', value: '$available', icon: Icons.library_books_rounded, color: AppColors.success, index: 3),
       ],
     );
   }
 
-  Widget _buildPieChart(LibrarianDashboardData d) {
-    return GlassCard(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: SizedBox(
-              height: 180,
-              child: PieChart(
-                PieChartData(
-                  pieTouchData: PieTouchData(
-                    touchCallback: (event, response) {
-                      if (event.isInterestedForInteractions && response?.touchedSection != null) {
-                        setState(() {
-                          _touchedIndex = response!.touchedSection!.touchedSectionIndex;
-                        });
-                      } else {
-                        setState(() => _touchedIndex = -1);
-                      }
-                    },
-                  ),
-                  sectionsSpace: 3,
-                  centerSpaceRadius: 36,
-                  sections: d.bookCategories.asMap().entries.map((e) {
-                    final isTouched = e.key == _touchedIndex;
-                    return PieChartSectionData(
-                      color: e.value.color,
-                      value: e.value.percent,
-                      title: '${e.value.percent.toStringAsFixed(0)}%',
-                      radius: isTouched ? 62 : 50,
-                      titleStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            flex: 2,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: d.bookCategories.map((cat) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(color: cat.color, shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(cat.name, style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-                          Text('${cat.percent.toStringAsFixed(0)}%', style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              )).toList(),
-            ),
-          ),
-        ],
-      ),
-    ).animate(delay: 200.ms).fadeIn(duration: 500.ms).slideY(begin: 0.1, end: 0);
-  }
-
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
-      _QuickAction('Issue\nBook', Icons.outbound_rounded, AppColors.primary, '/librarian/issue'),
-      _QuickAction('Return\nBook', Icons.assignment_return_rounded, AppColors.success, '/librarian/return'),
-      _QuickAction('Add\nBook', Icons.add_box_rounded, AppColors.roleLibrarian, '/librarian/books/add'),
+      _QuickAction('Issue\nBook', Icons.outbound_rounded, AppColors.primary, '/librarian/books'),
+      _QuickAction('Return\nBook', Icons.assignment_return_rounded, AppColors.success, '/librarian/books'),
+      _QuickAction('Catalogue', Icons.menu_book_rounded, AppColors.roleLibrarian, '/librarian/books'),
     ];
-
     return Row(
       children: actions.map((a) => Expanded(
         child: Padding(
@@ -328,14 +199,32 @@ class _LibrarianDashboardState extends ConsumerState<LibrarianDashboard> {
     );
   }
 
-  Widget _buildOverdueList(LibrarianDashboardData d) {
+  Widget _buildOverdueList(Map<String, dynamic> d) {
+    final list = (d['overdue_list'] as List?) ?? [];
+    if (list.isEmpty) {
+      return GlassCard(
+        padding: const EdgeInsets.all(20),
+        child: const Center(
+          child: Column(children: [
+            Icon(Icons.check_circle_outline_rounded, color: AppColors.success, size: 36),
+            SizedBox(height: 8),
+            Text('No overdue borrowings', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          ]),
+        ),
+      ).animate(delay: 300.ms).fadeIn();
+    }
+
     return Column(
-      children: d.overdueBorrowings.asMap().entries.map((e) {
-        final b = e.value;
-        final idx = e.key;
-        final urgencyColor = b.daysOverdue >= 10
+      children: list.asMap().entries.map((e) {
+        final b         = e.value as Map;
+        final idx       = e.key;
+        final title     = b['title']?.toString() ?? 'Unknown Book';
+        final student   = b['student_name']?.toString() ?? 'Unknown';
+        final dueDate   = b['due_date']?.toString() ?? '';
+        final daysOver  = _daysOverdue(dueDate);
+        final urgency   = daysOver >= 10
             ? AppColors.error
-            : b.daysOverdue >= 7
+            : daysOver >= 7
                 ? AppColors.warning
                 : AppColors.textSecondary;
 
@@ -348,21 +237,21 @@ class _LibrarianDashboardState extends ConsumerState<LibrarianDashboard> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: urgencyColor.withOpacity(0.12),
+                    color: urgency.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.menu_book_rounded, color: urgencyColor, size: 18),
+                  child: Icon(Icons.menu_book_rounded, color: urgency, size: 18),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(b.bookTitle,
+                      Text(title,
                           maxLines: 1, overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                       const SizedBox(height: 3),
-                      Text(b.studentName, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                      Text(student, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                     ],
                   ),
                 ),
@@ -370,18 +259,38 @@ class _LibrarianDashboardState extends ConsumerState<LibrarianDashboard> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    StatusBadge(label: '${b.daysOverdue}d overdue', color: urgencyColor),
+                    StatusBadge(label: '${daysOver}d overdue', color: urgency),
                     const SizedBox(height: 4),
-                    Text('Due: ${b.dueDate}', style: const TextStyle(fontSize: 9, color: AppColors.textHint)),
+                    Text('Due: ${_fmtDate(dueDate)}', style: const TextStyle(fontSize: 9, color: AppColors.textHint)),
                   ],
                 ),
               ],
             ),
           ),
-        ).animate(delay: Duration(milliseconds: 400 + idx * 60)).fadeIn().slideY(begin: 0.1, end: 0);
+        ).animate(delay: Duration(milliseconds: 300 + idx * 60)).fadeIn().slideY(begin: 0.1, end: 0);
       }).toList(),
     );
   }
+
+  int _daysOverdue(String dueDate) {
+    if (dueDate.isEmpty) return 0;
+    try {
+      final due  = DateTime.parse(dueDate);
+      final now  = DateTime.now();
+      final diff = now.difference(due).inDays;
+      return diff > 0 ? diff : 0;
+    } catch (_) { return 0; }
+  }
+
+  String _fmtDate(String d) {
+    if (d.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(d);
+      return '${dt.day} ${_months[dt.month - 1]} ${dt.year}';
+    } catch (_) { return d; }
+  }
+
+  static const _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 }
 
 class _QuickAction {

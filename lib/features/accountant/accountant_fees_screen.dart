@@ -1,88 +1,53 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
+import '../../core/services/api_service.dart';
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
+// ── Providers ─────────────────────────────────────────────────────────────────
 
-class _Invoice {
-  final int id;
-  final String student, term, dueDate, status, className;
-  final double amount, paid;
+final _feeSummaryProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final res = await ApiService().get('/fees/summary');
+  return Map<String, dynamic>.from(res.data as Map);
+});
 
-  const _Invoice({
-    required this.id, required this.student, required this.term,
-    required this.dueDate, required this.status, required this.className,
-    required this.amount, required this.paid,
-  });
+final _invoicesProvider = FutureProvider.autoDispose.family<List<dynamic>, String>((ref, status) async {
+  final params = status == 'All' ? <String, dynamic>{} : {'status': status.toLowerCase()};
+  final res = await ApiService().get('/fees/invoices', params: params);
+  final data = res.data as Map;
+  return (data['data'] as List?) ?? [];
+});
 
-  double get balance => amount - paid;
-  bool get isOverdue => status == 'Overdue';
-}
+final _paymentsProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final res = await ApiService().get('/fees/payments');
+  final data = res.data as Map;
+  return (data['data'] as List?) ?? [];
+});
 
-class _Payment {
-  final String student, date, method, reference;
-  final double amount;
-  const _Payment({required this.student, required this.date, required this.method, required this.reference, required this.amount});
-}
-
-class _Bursary {
-  final String student, sponsor, status;
-  final double amount;
-  const _Bursary({required this.student, required this.sponsor, required this.status, required this.amount});
-}
-
-const _invoices = [
-  _Invoice(id: 1,  student: 'Amara Osei',     term: 'Term 2 2025', dueDate: 'May 01, 2025', status: 'Paid',    className: 'Grade 7A',  amount: 45000, paid: 45000),
-  _Invoice(id: 2,  student: 'Brian Mwangi',   term: 'Term 2 2025', dueDate: 'May 01, 2025', status: 'Partial', className: 'Grade 8B',  amount: 50000, paid: 25000),
-  _Invoice(id: 3,  student: 'Chidi Okonkwo',  term: 'Term 2 2025', dueDate: 'May 01, 2025', status: 'Pending', className: 'Grade 9A',  amount: 47500, paid: 0),
-  _Invoice(id: 4,  student: 'Diana Kamau',    term: 'Term 2 2025', dueDate: 'Apr 01, 2025', status: 'Overdue', className: 'Grade 7B',  amount: 48000, paid: 0),
-  _Invoice(id: 5,  student: 'Emmanuel Ssali', term: 'Term 2 2025', dueDate: 'May 01, 2025', status: 'Paid',    className: 'Grade 10A', amount: 55000, paid: 55000),
-  _Invoice(id: 6,  student: 'Fatima Hassan',  term: 'Term 2 2025', dueDate: 'May 01, 2025', status: 'Partial', className: 'Grade 8A',  amount: 46000, paid: 23000),
-  _Invoice(id: 7,  student: 'George Weru',    term: 'Term 2 2025', dueDate: 'Mar 15, 2025', status: 'Overdue', className: 'Grade 11B', amount: 49000, paid: 10000),
-  _Invoice(id: 8,  student: 'Halima Juma',    term: 'Term 2 2025', dueDate: 'May 01, 2025', status: 'Pending', className: 'Grade 9B',  amount: 45500, paid: 0),
-];
-
-const _payments = [
-  _Payment(student: 'Amara Osei',     date: 'Apr 18, 2025', method: 'MoMo',  reference: 'TXN-001-2025', amount: 45000),
-  _Payment(student: 'Emmanuel Ssali', date: 'Apr 15, 2025', method: 'Bank',   reference: 'TXN-002-2025', amount: 55000),
-  _Payment(student: 'Fatima Hassan',  date: 'Apr 10, 2025', method: 'Cash',   reference: 'TXN-003-2025', amount: 23000),
-  _Payment(student: 'Brian Mwangi',   date: 'Mar 28, 2025', method: 'MoMo',  reference: 'TXN-004-2025', amount: 25000),
-  _Payment(student: 'George Weru',    date: 'Mar 20, 2025', method: 'Bank',   reference: 'TXN-005-2025', amount: 10000),
-  _Payment(student: 'Halima Juma',    date: 'Mar 05, 2025', method: 'Cash',   reference: 'TXN-006-2025', amount: 0),
-];
-
-const _bursaries = [
-  _Bursary(student: 'Diana Kamau',   sponsor: 'Gov Education Fund',  status: 'Approved', amount: 48000),
-  _Bursary(student: 'Chidi Okonkwo', sponsor: 'Community Trust',     status: 'Pending',  amount: 25000),
-  _Bursary(student: 'George Weru',   sponsor: 'NGO Scholars Program', status: 'Approved', amount: 39000),
-  _Bursary(student: 'Halima Juma',   sponsor: 'School Welfare Fund',  status: 'Review',   amount: 45500),
-];
-
-const _statusFilters   = ['All', 'Pending', 'Partial', 'Paid', 'Overdue'];
-const _methodFilters   = ['All', 'Cash', 'MoMo', 'Bank'];
+const _statusFilters = ['All', 'Pending', 'Partial', 'Paid', 'Overdue'];
+const _methodFilters = ['All', 'Cash', 'Mobile Money', 'Bank'];
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-class AccountantFeesScreen extends StatefulWidget {
+class AccountantFeesScreen extends ConsumerStatefulWidget {
   const AccountantFeesScreen({super.key});
 
   @override
-  State<AccountantFeesScreen> createState() => _AccountantFeesScreenState();
+  ConsumerState<AccountantFeesScreen> createState() => _AccountantFeesScreenState();
 }
 
-class _AccountantFeesScreenState extends State<AccountantFeesScreen>
+class _AccountantFeesScreenState extends ConsumerState<AccountantFeesScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   String _statusFilter = 'All';
   String _methodFilter = 'All';
-  bool _sortByOverdue  = false;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 2, vsync: this);
   }
 
   @override
@@ -91,28 +56,21 @@ class _AccountantFeesScreenState extends State<AccountantFeesScreen>
     super.dispose();
   }
 
-  List<_Invoice> get _filteredInvoices {
-    var list = _invoices.where((inv) => _statusFilter == 'All' || inv.status == _statusFilter).toList();
-    if (_sortByOverdue) {
-      list.sort((a, b) {
-        if (a.isOverdue && !b.isOverdue) return -1;
-        if (!a.isOverdue && b.isOverdue) return 1;
-        return 0;
-      });
-    }
-    return list;
+  String _fmt(double v) {
+    if (v >= 1000000) return 'UGX ${(v / 1000000).toStringAsFixed(2)}M';
+    if (v >= 1000)    return 'UGX ${(v / 1000).toStringAsFixed(0)}K';
+    return 'UGX ${v.toStringAsFixed(0)}';
   }
 
-  List<_Payment> get _filteredPayments => _payments.where((p) =>
-    _methodFilter == 'All' || p.method == _methodFilter
-  ).toList();
-
-  double get _totalBilled    => _invoices.fold(0, (s, i) => s + i.amount);
-  double get _totalCollected => _invoices.fold(0, (s, i) => s + i.paid);
-  double get _totalPending   => _totalBilled - _totalCollected;
+  String _fmtRaw(double v) {
+    return v.toStringAsFixed(0).replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  }
 
   @override
   Widget build(BuildContext context) {
+    final summaryAsync = ref.watch(_feeSummaryProvider);
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       appBar: AppBar(
@@ -125,8 +83,12 @@ class _AccountantFeesScreenState extends State<AccountantFeesScreen>
         title: const Text('Finance Management', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.download_rounded, color: AppColors.textSecondary),
-            onPressed: () {},
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
+            onPressed: () {
+              ref.invalidate(_feeSummaryProvider);
+              ref.invalidate(_invoicesProvider);
+              ref.invalidate(_paymentsProvider);
+            },
           ),
         ],
         bottom: TabBar(
@@ -135,7 +97,7 @@ class _AccountantFeesScreenState extends State<AccountantFeesScreen>
           labelColor: AppColors.roleAccountant,
           unselectedLabelColor: AppColors.textSecondary,
           labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-          tabs: const [Tab(text: 'Invoices'), Tab(text: 'Payments'), Tab(text: 'Bursary')],
+          tabs: const [Tab(text: 'Invoices'), Tab(text: 'Payments')],
         ),
       ),
       body: Container(
@@ -145,36 +107,43 @@ class _AccountantFeesScreenState extends State<AccountantFeesScreen>
             // Summary cards
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Row(
-                children: [
-                  Expanded(child: _SummaryCard('Total Billed',    'KES ${(_totalBilled / 1000).toStringAsFixed(0)}K',    AppColors.roleAccountant, Icons.receipt_long_rounded,            0)),
+              child: summaryAsync.when(
+                loading: () => Row(children: [
+                  Expanded(child: ShimmerCard(height: 70)),
                   const SizedBox(width: 8),
-                  Expanded(child: _SummaryCard('Collected',       'KES ${(_totalCollected / 1000).toStringAsFixed(0)}K', AppColors.success,        Icons.check_circle_rounded,            1)),
+                  Expanded(child: ShimmerCard(height: 70)),
                   const SizedBox(width: 8),
-                  Expanded(child: _SummaryCard('Outstanding',     'KES ${(_totalPending / 1000).toStringAsFixed(0)}K',   AppColors.warning,        Icons.pending_actions_rounded,         2)),
-                ],
+                  Expanded(child: ShimmerCard(height: 70)),
+                ]),
+                error: (_, __) => const SizedBox(),
+                data: (s) {
+                  final sum     = s['summary'] as Map? ?? {};
+                  final billed  = (sum['billed']  as num?)?.toDouble() ?? 0;
+                  final paid    = (sum['paid']    as num?)?.toDouble() ?? 0;
+                  final pending = (billed - paid).clamp(0.0, double.infinity);
+                  return Row(children: [
+                    Expanded(child: _SummaryCard('Total Billed',  _fmt(billed),  AppColors.roleAccountant, Icons.receipt_long_rounded,  0)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _SummaryCard('Collected',     _fmt(paid),    AppColors.success,        Icons.check_circle_rounded,  1)),
+                    const SizedBox(width: 8),
+                    Expanded(child: _SummaryCard('Outstanding',   _fmt(pending), AppColors.warning,        Icons.pending_actions_rounded, 2)),
+                  ]);
+                },
               ),
             ),
-
             const SizedBox(height: 12),
-
             Expanded(
               child: TabBarView(
                 controller: _tabs,
                 children: [
                   _InvoicesTab(
-                    invoices: _filteredInvoices,
                     statusFilter: _statusFilter,
-                    sortByOverdue: _sortByOverdue,
                     onFilterChanged: (v) => setState(() => _statusFilter = v),
-                    onSortToggle: () => setState(() => _sortByOverdue = !_sortByOverdue),
                   ),
                   _PaymentsTab(
-                    payments: _filteredPayments,
                     methodFilter: _methodFilter,
                     onMethodChanged: (v) => setState(() => _methodFilter = v),
                   ),
-                  _BursaryTab(bursaries: _bursaries),
                 ],
               ),
             ),
@@ -202,7 +171,7 @@ class _SummaryCard extends StatelessWidget {
       children: [
         Icon(icon, color: color, size: 18),
         const SizedBox(height: 6),
-        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color)),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: color), maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 2),
         Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
       ],
@@ -212,142 +181,173 @@ class _SummaryCard extends StatelessWidget {
 
 // ── Invoices Tab ──────────────────────────────────────────────────────────────
 
-class _InvoicesTab extends StatelessWidget {
-  final List<_Invoice> invoices;
+class _InvoicesTab extends ConsumerWidget {
   final String statusFilter;
-  final bool sortByOverdue;
   final ValueChanged<String> onFilterChanged;
-  final VoidCallback onSortToggle;
-
-  const _InvoicesTab({
-    required this.invoices, required this.statusFilter, required this.sortByOverdue,
-    required this.onFilterChanged, required this.onSortToggle,
-  });
+  const _InvoicesTab({required this.statusFilter, required this.onFilterChanged});
 
   Color _statusColor(String s) {
-    switch (s) {
-      case 'Paid':    return AppColors.success;
-      case 'Partial': return AppColors.primary;
-      case 'Pending': return AppColors.warning;
-      case 'Overdue': return AppColors.error;
+    switch (s.toLowerCase()) {
+      case 'paid':    return AppColors.success;
+      case 'partial': return AppColors.primary;
+      case 'pending': return AppColors.warning;
+      case 'overdue': return AppColors.error;
       default:        return AppColors.textSecondary;
     }
   }
 
+  String _fmt(double v) => v.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final invoicesAsync = ref.watch(_invoicesProvider(statusFilter));
+
     return Column(
       children: [
+        // Filter bar
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 34,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _statusFilters.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) {
-                      final f = _statusFilters[i];
-                      final sel = f == statusFilter;
-                      return GestureDetector(
-                        onTap: () => onFilterChanged(f),
-                        child: AnimatedContainer(
-                          duration: 200.ms,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: sel ? AppColors.roleAccountant : AppColors.surface2,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: sel ? AppColors.roleAccountant : Colors.white.withOpacity(0.07)),
-                          ),
-                          child: Text(f, style: TextStyle(fontSize: 11, color: sel ? Colors.white : AppColors.textSecondary, fontWeight: sel ? FontWeight.w600 : FontWeight.normal)),
-                        ),
-                      );
-                    },
+          child: SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _statusFilters.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) {
+                final f   = _statusFilters[i];
+                final sel = f == statusFilter;
+                return GestureDetector(
+                  onTap: () => onFilterChanged(f),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: sel ? AppColors.roleAccountant : AppColors.surface2,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: sel ? AppColors.roleAccountant : Colors.white.withOpacity(0.07)),
+                    ),
+                    child: Text(f, style: TextStyle(
+                        fontSize: 11,
+                        color: sel ? Colors.white : AppColors.textSecondary,
+                        fontWeight: sel ? FontWeight.w600 : FontWeight.normal)),
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: onSortToggle,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: sortByOverdue ? AppColors.error.withOpacity(0.2) : AppColors.surface2,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: sortByOverdue ? AppColors.error : Colors.white.withOpacity(0.07)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.sort_rounded, size: 14, color: sortByOverdue ? AppColors.error : AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text('Overdue', style: TextStyle(fontSize: 11, color: sortByOverdue ? AppColors.error : AppColors.textSecondary)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+                );
+              },
+            ),
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 80),
-            itemCount: invoices.length,
-            itemBuilder: (_, i) {
-              final inv = invoices[i];
-              return Padding(
+          child: invoicesAsync.when(
+            loading: () => ListView(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 80),
+              children: List.generate(5, (_) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: GlassCard(
-                  color: inv.isOverdue ? AppColors.error.withOpacity(0.05) : null,
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      Row(
+                child: ShimmerCard(height: 110),
+              )),
+            ),
+            error: (e, _) => Center(
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.error_outline_rounded, color: AppColors.textHint, size: 48),
+                const SizedBox(height: 12),
+                const Text('Could not load invoices', style: TextStyle(color: AppColors.textSecondary)),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(_invoicesProvider),
+                  child: const Text('Retry'),
+                ),
+              ]),
+            ),
+            data: (invoices) {
+              if (invoices.isEmpty) {
+                return Center(
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.receipt_long_outlined, color: AppColors.textHint, size: 52),
+                    const SizedBox(height: 12),
+                    Text(
+                      statusFilter == 'All' ? 'No invoices yet' : 'No $statusFilter invoices',
+                      style: const TextStyle(color: AppColors.textSecondary, fontSize: 15),
+                    ),
+                  ]),
+                );
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 80),
+                itemCount: invoices.length,
+                itemBuilder: (_, i) {
+                  final inv     = invoices[i] as Map;
+                  final status  = inv['status']?.toString() ?? 'pending';
+                  final student = inv['student_name']?.toString() ?? 'Unknown';
+                  final cls     = inv['class_name']?.toString() ?? '';
+                  final term    = inv['term']?.toString() ?? inv['description']?.toString() ?? '';
+                  final due     = inv['due_date']?.toString() ?? '';
+                  final total   = (inv['total_amount']  as num?)?.toDouble() ?? 0;
+                  final paid    = (inv['paid_amount']   as num?)?.toDouble() ?? 0;
+                  final balance = (total - paid).clamp(0.0, double.infinity);
+                  final color   = _statusColor(status);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GlassCard(
+                      color: status == 'overdue' ? AppColors.error.withOpacity(0.05) : null,
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
                         children: [
-                          Container(
-                            width: 4, height: 60,
-                            decoration: BoxDecoration(color: _statusColor(inv.status), borderRadius: BorderRadius.circular(4)),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          Row(
+                            children: [
+                              Container(width: 4, height: 60,
+                                  decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4))),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(child: Text(inv.student, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary))),
-                                    StatusBadge(label: inv.status, color: _statusColor(inv.status)),
+                                    Row(children: [
+                                      Expanded(child: Text(student,
+                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary))),
+                                      StatusBadge(label: status[0].toUpperCase() + status.substring(1), color: color),
+                                    ]),
+                                    const SizedBox(height: 3),
+                                    Text([if (cls.isNotEmpty) cls, if (term.isNotEmpty) term].join('  •  '),
+                                        style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                                    const SizedBox(height: 2),
+                                    if (due.isNotEmpty)
+                                      Text('Due: ${_fmtDate(due)}',
+                                          style: TextStyle(fontSize: 10,
+                                              color: status == 'overdue' ? AppColors.error : AppColors.textHint)),
                                   ],
                                 ),
-                                const SizedBox(height: 3),
-                                Text('${inv.className}  •  ${inv.term}', style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                                const SizedBox(height: 2),
-                                Text('Due: ${inv.dueDate}', style: TextStyle(fontSize: 10, color: inv.isOverdue ? AppColors.error : AppColors.textHint)),
-                              ],
-                            ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              _AmtCell('Billed',  'UGX ${_fmt(total)}',   AppColors.textPrimary),
+                              _AmtCell('Paid',    'UGX ${_fmt(paid)}',    AppColors.success),
+                              _AmtCell('Balance', 'UGX ${_fmt(balance)}', balance > 0 ? AppColors.warning : AppColors.success),
+                            ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          _AmtCell('Billed',  'KES ${inv.amount.toStringAsFixed(0)}', AppColors.textPrimary),
-                          _AmtCell('Paid',    'KES ${inv.paid.toStringAsFixed(0)}',   AppColors.success),
-                          _AmtCell('Balance', 'KES ${inv.balance.toStringAsFixed(0)}', inv.balance > 0 ? AppColors.warning : AppColors.success),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ).animate(delay: Duration(milliseconds: i * 50)).fadeIn().slideX(begin: 0.05, end: 0);
+                    ),
+                  ).animate(delay: Duration(milliseconds: i * 40)).fadeIn().slideX(begin: 0.05, end: 0);
+                },
+              );
             },
           ),
         ),
       ],
     );
+  }
+
+  String _fmtDate(String d) {
+    try {
+      final dt = DateTime.parse(d);
+      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${dt.day} ${m[dt.month-1]}, ${dt.year}';
+    } catch (_) { return d; }
   }
 }
 
@@ -355,7 +355,6 @@ class _AmtCell extends StatelessWidget {
   final String label, value;
   final Color color;
   const _AmtCell(this.label, this.value, this.color);
-
   @override
   Widget build(BuildContext context) => Column(
     children: [
@@ -367,32 +366,52 @@ class _AmtCell extends StatelessWidget {
 
 // ── Payments Tab ──────────────────────────────────────────────────────────────
 
-class _PaymentsTab extends StatelessWidget {
-  final List<_Payment> payments;
+class _PaymentsTab extends ConsumerWidget {
   final String methodFilter;
   final ValueChanged<String> onMethodChanged;
-  const _PaymentsTab({required this.payments, required this.methodFilter, required this.onMethodChanged});
+  const _PaymentsTab({required this.methodFilter, required this.onMethodChanged});
 
   Color _methodColor(String m) {
-    switch (m) {
-      case 'Cash': return AppColors.success;
-      case 'MoMo': return AppColors.accent;
-      case 'Bank': return AppColors.primary;
-      default:     return AppColors.textSecondary;
+    switch (m.toLowerCase()) {
+      case 'cash':         return AppColors.success;
+      case 'mobile_money':
+      case 'momo':
+      case 'mobile money': return AppColors.accent;
+      case 'bank':         return AppColors.primary;
+      default:             return AppColors.textSecondary;
     }
   }
 
   IconData _methodIcon(String m) {
-    switch (m) {
-      case 'Cash': return Icons.payments_rounded;
-      case 'MoMo': return Icons.phone_android_rounded;
-      case 'Bank': return Icons.account_balance_rounded;
-      default:     return Icons.payment_rounded;
+    switch (m.toLowerCase()) {
+      case 'cash':         return Icons.payments_rounded;
+      case 'mobile_money':
+      case 'momo':
+      case 'mobile money': return Icons.phone_android_rounded;
+      case 'bank':         return Icons.account_balance_rounded;
+      default:             return Icons.payment_rounded;
     }
   }
 
+  String _methodLabel(String m) {
+    switch (m.toLowerCase()) {
+      case 'mobile_money': return 'Mobile Money';
+      default:             return m[0].toUpperCase() + m.substring(1);
+    }
+  }
+
+  String _fmt(double v) => v.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+
+  bool _matchesFilter(String method) {
+    if (methodFilter == 'All') return true;
+    return _methodLabel(method).toLowerCase() == methodFilter.toLowerCase();
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final paymentsAsync = ref.watch(_paymentsProvider);
+
     return Column(
       children: [
         Padding(
@@ -405,14 +424,17 @@ class _PaymentsTab extends StatelessWidget {
                 child: GestureDetector(
                   onTap: () => onMethodChanged(m),
                   child: AnimatedContainer(
-                    duration: 200.ms,
+                    duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                     decoration: BoxDecoration(
                       color: sel ? _methodColor(m) : AppColors.surface2,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: sel ? _methodColor(m) : Colors.white.withOpacity(0.07)),
                     ),
-                    child: Text(m, style: TextStyle(fontSize: 12, color: sel ? Colors.white : AppColors.textSecondary, fontWeight: sel ? FontWeight.w600 : FontWeight.normal)),
+                    child: Text(m, style: TextStyle(
+                        fontSize: 12,
+                        color: sel ? Colors.white : AppColors.textSecondary,
+                        fontWeight: sel ? FontWeight.w600 : FontWeight.normal)),
                   ),
                 ),
               );
@@ -420,143 +442,107 @@ class _PaymentsTab extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-            itemCount: payments.length,
-            itemBuilder: (_, i) {
-              final p = payments[i];
-              return Padding(
+          child: paymentsAsync.when(
+            loading: () => ListView(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+              children: List.generate(5, (_) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: GlassCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(color: _methodColor(p.method).withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                        child: Icon(_methodIcon(p.method), color: _methodColor(p.method), size: 22),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(p.student, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                            const SizedBox(height: 3),
-                            Row(
+                child: ShimmerCard(height: 80),
+              )),
+            ),
+            error: (e, _) => Center(
+              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.error_outline_rounded, color: AppColors.textHint, size: 48),
+                const SizedBox(height: 12),
+                const Text('Could not load payments', style: TextStyle(color: AppColors.textSecondary)),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () => ref.invalidate(_paymentsProvider),
+                  child: const Text('Retry'),
+                ),
+              ]),
+            ),
+            data: (allPayments) {
+              final payments = allPayments
+                  .where((p) => _matchesFilter((p as Map)['payment_method']?.toString() ?? ''))
+                  .toList();
+
+              if (payments.isEmpty) {
+                return Center(
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.payments_outlined, color: AppColors.textHint, size: 52),
+                    const SizedBox(height: 12),
+                    const Text('No payments recorded yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+                  ]),
+                );
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                itemCount: payments.length,
+                itemBuilder: (_, i) {
+                  final p       = payments[i] as Map;
+                  final name    = p['student_name']?.toString() ?? 'Unknown';
+                  final method  = p['payment_method']?.toString() ?? 'Cash';
+                  final amount  = (p['amount'] as num?)?.toDouble() ?? 0;
+                  final date    = p['payment_date']?.toString() ?? p['created_at']?.toString() ?? '';
+                  final ref_no  = p['reference']?.toString() ?? p['receipt_number']?.toString() ?? '';
+                  final color   = _methodColor(method);
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: GlassCard(
+                      padding: const EdgeInsets.all(14),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44, height: 44,
+                            decoration: BoxDecoration(
+                                color: color.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12)),
+                            child: Icon(_methodIcon(method), color: color, size: 22),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                StatusBadge(label: p.method, color: _methodColor(p.method)),
-                                const SizedBox(width: 8),
-                                Text(p.date, style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                                Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                const SizedBox(height: 3),
+                                Row(children: [
+                                  StatusBadge(label: _methodLabel(method), color: color),
+                                  const SizedBox(width: 8),
+                                  if (date.isNotEmpty)
+                                    Text(_fmtDate(date), style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                                ]),
+                                if (ref_no.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(ref_no, style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
+                                  ),
                               ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(p.reference, style: const TextStyle(fontSize: 10, color: AppColors.textHint, fontFamily: 'monospace')),
-                          ],
-                        ),
+                          ),
+                          Text('UGX ${_fmt(amount)}',
+                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.success)),
+                        ],
                       ),
-                      Text(
-                        'KES ${p.amount.toStringAsFixed(0)}',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.success),
-                      ),
-                    ],
-                  ),
-                ),
-              ).animate(delay: Duration(milliseconds: i * 50)).fadeIn().slideX(begin: 0.05, end: 0);
+                    ),
+                  ).animate(delay: Duration(milliseconds: i * 40)).fadeIn().slideX(begin: 0.05, end: 0);
+                },
+              );
             },
           ),
         ),
       ],
     );
   }
-}
 
-// ── Bursary Tab ───────────────────────────────────────────────────────────────
-
-class _BursaryTab extends StatelessWidget {
-  final List<_Bursary> bursaries;
-  const _BursaryTab({required this.bursaries});
-
-  Color _statusColor(String s) {
-    switch (s) {
-      case 'Approved': return AppColors.success;
-      case 'Pending':  return AppColors.warning;
-      case 'Review':   return AppColors.primary;
-      default:         return AppColors.textSecondary;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final totalBursary = bursaries.fold<double>(0, (s, b) => s + b.amount);
-
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-      itemCount: bursaries.length + 1,
-      itemBuilder: (_, i) {
-        if (i == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: GlassCard(
-              gradient: const LinearGradient(colors: [AppColors.surface1, AppColors.surface2]),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: AppColors.roleAccountant.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.volunteer_activism_rounded, color: AppColors.roleAccountant, size: 24),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Total Bursary Allocated', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                      Text('KES ${totalBursary.toStringAsFixed(0)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.roleAccountant)),
-                      Text('${bursaries.length} student${bursaries.length != 1 ? 's' : ''}', style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
-                    ],
-                  ),
-                ],
-              ),
-            ).animate().fadeIn(),
-          );
-        }
-
-        final b = bursaries[i - 1];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: GlassCard(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Container(
-                  width: 44, height: 44,
-                  decoration: BoxDecoration(color: _statusColor(b.status).withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                  child: const Icon(Icons.school_rounded, color: AppColors.textSecondary, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(b.student, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                      const SizedBox(height: 3),
-                      Text(b.sponsor, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('KES ${b.amount.toStringAsFixed(0)}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                    const SizedBox(height: 6),
-                    StatusBadge(label: b.status, color: _statusColor(b.status)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ).animate(delay: Duration(milliseconds: i * 60)).fadeIn().slideX(begin: 0.05, end: 0);
-      },
-    );
+  String _fmtDate(String d) {
+    try {
+      final dt = DateTime.parse(d);
+      const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      return '${dt.day} ${m[dt.month-1]}, ${dt.year}';
+    } catch (_) { return d; }
   }
 }

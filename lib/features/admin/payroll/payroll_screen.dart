@@ -39,9 +39,9 @@ final List<_PayrollRecord> _mockPayroll = [
 ];
 
 String _fmt(double v) {
-  if (v >= 1000000) return 'KES ${(v / 1000000).toStringAsFixed(1)}M';
-  if (v >= 1000)    return 'KES ${(v / 1000).toStringAsFixed(0)}K';
-  return 'KES ${v.toStringAsFixed(0)}';
+  if (v >= 1000000) return 'UGX ${(v / 1000000).toStringAsFixed(1)}M';
+  if (v >= 1000)    return 'UGX ${(v / 1000).toStringAsFixed(0)}K';
+  return 'UGX ${v.toStringAsFixed(0)}';
 }
 
 // ── Screen ────────────────────────────────────────────────────────────────────

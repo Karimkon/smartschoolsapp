@@ -23,7 +23,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   Future<void> _init() async {
     await Future.delayed(2200.ms);
-    await ref.read(authProvider.notifier).tryAutoLogin();
     if (!mounted) return;
 
     final user = ref.read(authProvider).user;

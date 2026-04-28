@@ -55,37 +55,43 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              if (subtitle != null)
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: MediaQuery.withNoTextScaling(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(subtitle!, style: TextStyle(color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w600)),
+                  child: Icon(icon, color: color, size: 18),
                 ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(value, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-          const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
-        ],
+                if (subtitle != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(subtitle!, style: const TextStyle(color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w600)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(value,
+                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: AppColors.textPrimary, height: 1.15),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 2),
+            Text(label,
+                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.w500, height: 1.15),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+          ],
+        ),
       ),
     ).animate(delay: Duration(milliseconds: index * 80))
       .fadeIn(duration: 400.ms)
@@ -190,17 +196,32 @@ class AvatarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: size, height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(colors: [color, color.withOpacity(0.6)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-      ),
-      child: Center(
-        child: Text(initials, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * 0.36)),
-      ),
-    );
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      return ClipOval(
+        child: Image.network(
+          imageUrl!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _initials(),
+          loadingBuilder: (_, child, progress) =>
+              progress == null ? child : _initials(),
+        ),
+      );
+    }
+    return _initials();
   }
+
+  Widget _initials() => Container(
+    width: size, height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      gradient: LinearGradient(colors: [color, color.withOpacity(0.6)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+    ),
+    child: Center(
+      child: Text(initials, style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: size * 0.36)),
+    ),
+  );
 }
 
 // ── Status Badge ──────────────────────────────────────────────────────────────

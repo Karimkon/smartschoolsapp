@@ -3,38 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 
-// ── Demo accounts (offline mode) ──────────────────────────────────────────────
-const _demoUsers = {
-  'admin@school.com': {
-    'id': 1, 'name': 'Alex Johnson', 'role': 'school_admin',
-    'school_id': 1, 'school_name': 'Greenwood Academy',
-  },
-  'teacher@school.com': {
-    'id': 2, 'name': 'Sarah Mitchell', 'role': 'teacher',
-    'school_id': 1, 'school_name': 'Greenwood Academy',
-  },
-  'student@school.com': {
-    'id': 3, 'name': 'James Okello', 'role': 'student',
-    'school_id': 1, 'school_name': 'Greenwood Academy',
-  },
-  'parent@school.com': {
-    'id': 4, 'name': 'Mary Nakato', 'role': 'parent',
-    'school_id': 1, 'school_name': 'Greenwood Academy',
-  },
-  'accounts@school.com': {
-    'id': 5, 'name': 'David Mugisha', 'role': 'accountant',
-    'school_id': 1, 'school_name': 'Greenwood Academy',
-  },
-  'library@school.com': {
-    'id': 6, 'name': 'Grace Apio', 'role': 'librarian',
-    'school_id': 1, 'school_name': 'Greenwood Academy',
-  },
-  'super@smartschools.com': {
-    'id': 7, 'name': 'Super Admin', 'role': 'super_admin',
-    'school_id': null, 'school_name': null,
-  },
-};
-
 // ── State ─────────────────────────────────────────────────────────────────────
 class AuthState {
   final UserModel? user;
@@ -58,79 +26,95 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier() : super(const AuthState());
 
-  Future<void> tryAutoLogin() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-    if (token == null) return;
+  // ── Persist user profile locally so the app starts instantly ──────────────
+  static Future<void> _save(UserModel u) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString('auth_token',       u.token);
+    await p.setString('user_id',          u.id.toString());
+    await p.setString('user_name',        u.name);
+    await p.setString('user_email',       u.email);
+    await p.setString('user_role',        u.role);
+    if (u.schoolId   != null) await p.setInt   ('user_school_id',   u.schoolId!);
+    if (u.schoolName != null) await p.setString('user_school_name', u.schoolName!);
+  }
 
-    // Demo token — restore demo user immediately
-    if (token.startsWith('demo_')) {
-      final email = prefs.getString('demo_email') ?? '';
-      final demoData = _demoUsers[email];
-      if (demoData != null) {
-        final user = UserModel(
-          id:         demoData['id'] as int,
-          name:       demoData['name'] as String,
-          email:      email,
-          role:       demoData['role'] as String,
-          schoolId:   demoData['school_id'] as int?,
-          schoolName: demoData['school_name'] as String?,
-          token:      token,
-        );
-        state = AuthState(user: user);
-        return;
-      }
-    }
-
-    // Real token — verify with server
-    try {
-      state = state.copyWith(loading: true);
-      final res = await ApiService().get('/auth/me');
-      final user = UserModel.fromJson(res.data['user'], token);
-      state = AuthState(user: user);
-    } catch (_) {
-      await prefs.remove('auth_token');
-      await prefs.remove('demo_email');
-      state = const AuthState();
+  static Future<void> _clear() async {
+    final p = await SharedPreferences.getInstance();
+    for (final k in [
+      'auth_token', 'user_id', 'user_name', 'user_email',
+      'user_role', 'user_school_id', 'user_school_name',
+    ]) {
+      await p.remove(k);
     }
   }
 
-  Future<bool> login(String email, String password) async {
-    state = state.copyWith(loading: true, error: null);
+  // ── On app start: restore from local prefs, verify in background ──────────
+  Future<void> tryAutoLogin() async {
+    final p     = await SharedPreferences.getInstance();
+    final token = p.getString('auth_token');
+    if (token == null) return;
 
-    // ── Demo mode: instant offline login ──────────────────────────────────────
-    final demoData = _demoUsers[email.toLowerCase().trim()];
-    if (demoData != null && password == 'password') {
-      await Future.delayed(const Duration(milliseconds: 600)); // feels real
-      final token = 'demo_${DateTime.now().millisecondsSinceEpoch}';
-      final user = UserModel(
-        id:         demoData['id'] as int,
-        name:       demoData['name'] as String,
-        email:      email.toLowerCase().trim(),
-        role:       demoData['role'] as String,
-        schoolId:   demoData['school_id'] as int?,
-        schoolName: demoData['school_name'] as String?,
-        token:      token,
-      );
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token',  token);
-      await prefs.setString('demo_email',  email.toLowerCase().trim());
-      state = AuthState(user: user);
-      return true;
+    final id    = int.tryParse(p.getString('user_id') ?? '');
+    final name  = p.getString('user_name');
+    final email = p.getString('user_email');
+    final role  = p.getString('user_role');
+
+    if (id == null || name == null || email == null || role == null) {
+      // Corrupted prefs — force re-login
+      await _clear();
+      return;
     }
 
-    // ── Live API login ────────────────────────────────────────────────────────
+    // Restore instantly — no network wait
+    final user = UserModel(
+      id:         id,
+      name:       name,
+      email:      email,
+      role:       role,
+      schoolId:   p.getInt('user_school_id'),
+      schoolName: p.getString('user_school_name'),
+      token:      token,
+    );
+    state = AuthState(user: user);
+
+    // Verify token with server in background
+    _verifyTokenInBackground(token);
+  }
+
+  void _verifyTokenInBackground(String token) {
+    ApiService().get('/auth/me').then((res) {
+      // Refresh local profile with latest server data
+      final fresh = UserModel.fromJson(res.data['user'], token);
+      _save(fresh);
+      state = AuthState(user: fresh);
+    }).catchError((e) {
+      final msg = e.toString();
+      // Only force logout on explicit auth rejection
+      if (msg.contains('401') || msg.contains('403') || msg.contains('Unauthenticated')) {
+        _clear();
+        state = const AuthState();
+      }
+      // Ignore network errors — keep the user logged in
+    });
+  }
+
+  void clearError() {
+    if (state.error != null) state = AuthState(user: state.user);
+  }
+
+  // ── Login with live API ───────────────────────────────────────────────────
+  Future<bool> login(String email, String password) async {
+    state = const AuthState(loading: true);
     try {
       final res = await ApiService().post('/auth/login', data: {
-        'email': email, 'password': password,
+        'email':    email.trim(),
+        'password': password,
       });
+
       final token = res.data['token'] as String;
       final user  = UserModel.fromJson(res.data['user'], token);
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_token', token);
-      await prefs.remove('demo_email');
-
+      await _save(user);
       state = AuthState(user: user);
       return true;
     } on Exception catch (e) {
@@ -140,23 +124,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token') ?? '';
-    if (!token.startsWith('demo_')) {
-      try { await ApiService().post('/auth/logout'); } catch (_) {}
-    }
-    await prefs.remove('auth_token');
-    await prefs.remove('demo_email');
+    try { await ApiService().post('/auth/logout'); } catch (_) {}
+    await _clear();
     state = const AuthState();
   }
 
   String _extractError(Exception e) {
-    final str = e.toString();
-    if (str.contains('401') || str.contains('Unauthorised') || str.contains('credentials')) {
-      return 'Invalid email or password';
+    final s = e.toString();
+    if (s.contains('401') || s.contains('422') ||
+        s.contains('nvalid') || s.contains('redentials') ||
+        s.contains('nauthori')) {
+      return 'Invalid email or password.';
     }
-    if (str.contains('SocketException') || str.contains('connection') || str.contains('timeout')) {
-      return 'Cannot reach server. Check your connection.';
+    if (s.contains('SocketException') || s.contains('connection') ||
+        s.contains('timeout') || s.contains('Network')) {
+      return 'No internet connection. Please try again.';
     }
     return 'Login failed. Please try again.';
   }

@@ -67,8 +67,12 @@ import '../features/student/student_timetable_screen.dart';
 import '../features/student/student_fees_screen.dart';
 import '../features/student/student_results_screen.dart';
 
-// ── Other roles ────────────────────────────────────────────────────────────────
+// ── Parent ─────────────────────────────────────────────────────────────────────
 import '../features/parent/parent_dashboard.dart';
+import '../features/parent/parent_fees_screen.dart';
+import '../features/parent/parent_reports_screen.dart';
+import '../features/parent/parent_attendance_screen.dart';
+import '../features/parent/parent_announcements_screen.dart';
 import '../features/accountant/accountant_dashboard.dart';
 import '../features/accountant/accountant_fees_screen.dart';
 import '../features/librarian/librarian_dashboard.dart';
@@ -78,12 +82,11 @@ import '../features/profile/profile_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/splash',
     redirect: (context, state) {
-      final isLoggedIn   = authState.isLoggedIn;
+      final authState  = ref.read(authProvider);
+      final isLoggedIn = authState.isLoggedIn;
       final loc          = state.matchedLocation;
       final onSplash     = loc == '/splash';
       final onOnboarding = loc == '/onboarding';
@@ -183,8 +186,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (ctx, state, child) => NavShell(child: child, role: 'parent'),
         routes: [
-          GoRoute(path: '/parent',        builder: (_, __) => const ParentDashboard()),
-          GoRoute(path: '/parent/profile',builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/parent',               builder: (_, __) => const ParentDashboard()),
+          GoRoute(path: '/parent/profile',       builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/parent/fees',          builder: (_, __) => const ParentFeesScreen()),
+          GoRoute(path: '/parent/reports',       builder: (_, __) => const ParentReportsScreen()),
+          GoRoute(path: '/parent/attendance',    builder: (_, __) => const ParentAttendanceScreen()),
+          GoRoute(path: '/parent/announcements', builder: (_, __) => const ParentAnnouncementsScreen()),
         ],
       ),
 
@@ -218,6 +225,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+  ref.listen<AuthState>(authProvider, (_, __) => router.refresh());
+  return router;
 });
 
 String _homeForRole(String role) {

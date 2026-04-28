@@ -3,76 +3,16 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/providers/auth_provider.dart';
-
-// ── Models ────────────────────────────────────────────────────────────────────
-
-class AccountantDashboardData {
-  final double totalBilled;
-  final double totalCollected;
-  final double pending;
-  final int overdueCount;
-  final List<MonthlyCollection> monthlyCollections;
-  final List<RecentPayment> recentPayments;
-
-  const AccountantDashboardData({
-    required this.totalBilled,
-    required this.totalCollected,
-    required this.pending,
-    required this.overdueCount,
-    required this.monthlyCollections,
-    required this.recentPayments,
-  });
-}
-
-class MonthlyCollection {
-  final String month;
-  final double amount;
-  const MonthlyCollection(this.month, this.amount);
-}
-
-class RecentPayment {
-  final String studentName;
-  final double amount;
-  final String date;
-  final String method;
-  final Color methodColor;
-  const RecentPayment(this.studentName, this.amount, this.date, this.method, this.methodColor);
-}
+import '../../core/services/api_service.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
-final accountantDashboardProvider = FutureProvider<AccountantDashboardData>((ref) async {
-  try {
-    await Future.delayed(const Duration(milliseconds: 600));
-    throw Exception('Using mock data');
-  } catch (_) {
-    return const AccountantDashboardData(
-      totalBilled: 4850000,
-      totalCollected: 3620000,
-      pending: 1230000,
-      overdueCount: 47,
-      monthlyCollections: [
-        MonthlyCollection('Nov', 580000),
-        MonthlyCollection('Dec', 420000),
-        MonthlyCollection('Jan', 690000),
-        MonthlyCollection('Feb', 750000),
-        MonthlyCollection('Mar', 610000),
-        MonthlyCollection('Apr', 570000),
-      ],
-      recentPayments: [
-        RecentPayment('Alice Muthoni', 15000, '21 Apr 2025', 'M-Pesa', AppColors.success),
-        RecentPayment('John Otieno', 35000, '21 Apr 2025', 'Bank', AppColors.primary),
-        RecentPayment('Grace Waweru', 15000, '20 Apr 2025', 'M-Pesa', AppColors.success),
-        RecentPayment('David Kibet', 35000, '20 Apr 2025', 'Cash', AppColors.warning),
-        RecentPayment('Faith Njoroge', 15000, '19 Apr 2025', 'M-Pesa', AppColors.success),
-        RecentPayment('Peter Kamau', 35000, '19 Apr 2025', 'Bank', AppColors.primary),
-      ],
-    );
-  }
+final accountantDashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final res = await ApiService().get('/dashboard');
+  return Map<String, dynamic>.from(res.data as Map);
 });
 
 // ── Dashboard Screen ──────────────────────────────────────────────────────────
@@ -82,9 +22,8 @@ class AccountantDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider);
+    final user     = ref.watch(currentUserProvider);
     final dashAsync = ref.watch(accountantDashboardProvider);
-    final fmt = NumberFormat('#,###');
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -108,8 +47,8 @@ class AccountantDashboard extends ConsumerWidget {
                         const SizedBox(height: 24),
                         dashAsync.when(
                           loading: () => _statsShimmer(),
-                          error: (_, __) => _statsShimmer(),
-                          data: (d) => _buildStats(d, fmt),
+                          error: (e, _) => _buildError(ref, e),
+                          data: (d) => _buildStats(d),
                         ),
                         const SizedBox(height: 24),
                         SectionHeader(
@@ -121,7 +60,7 @@ class AccountantDashboard extends ConsumerWidget {
                         dashAsync.when(
                           loading: () => const ShimmerCard(height: 220),
                           error: (_, __) => const ShimmerCard(height: 220),
-                          data: (d) => _buildCollectionsChart(d, fmt),
+                          data: (d) => _buildCollectionsChart(d),
                         ),
                         const SizedBox(height: 24),
                         SectionHeader(title: 'Quick Actions')
@@ -133,13 +72,13 @@ class AccountantDashboard extends ConsumerWidget {
                         SectionHeader(
                           title: 'Recent Payments',
                           action: 'View All',
-                          onAction: () => context.push('/accountant/payments'),
+                          onAction: () => context.push('/accountant/fees'),
                         ).animate(delay: 400.ms).fadeIn().slideY(begin: 0.1),
                         const SizedBox(height: 12),
                         dashAsync.when(
                           loading: () => _listShimmer(),
                           error: (_, __) => _listShimmer(),
-                          data: (d) => _buildPaymentsList(d, fmt),
+                          data: (d) => _buildPaymentsList(d),
                         ),
                         const SizedBox(height: 24),
                       ],
@@ -155,7 +94,7 @@ class AccountantDashboard extends ConsumerWidget {
   }
 
   Widget _buildHeader(user) {
-    final name = user?.name ?? 'Accountant';
+    final name     = user?.name ?? 'Accountant';
     final initials = user?.initials ?? 'A';
     return Row(
       children: [
@@ -200,7 +139,29 @@ class AccountantDashboard extends ConsumerWidget {
     )),
   );
 
-  Widget _buildStats(AccountantDashboardData d, NumberFormat fmt) {
+  Widget _buildError(WidgetRef ref, Object e) => Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Column(children: [
+        const Icon(Icons.cloud_off_rounded, color: AppColors.textHint, size: 52),
+        const SizedBox(height: 12),
+        const Text('Could not load dashboard', style: TextStyle(color: AppColors.textSecondary)),
+        const SizedBox(height: 16),
+        ElevatedButton(
+          onPressed: () => ref.invalidate(accountantDashboardProvider),
+          child: const Text('Retry'),
+        ),
+      ]),
+    ),
+  );
+
+  Widget _buildStats(Map<String, dynamic> d) {
+    final stats   = d['stats'] as Map? ?? {};
+    final billed  = stats['billed']?.toString() ?? '0 UGX';
+    final paid    = stats['paid']?.toString()   ?? '0 UGX';
+    final pending = stats['pending']?.toString() ?? '0 UGX';
+    final overdue = (stats['overdue'] as int?) ?? 0;
+
     return GridView.count(
       shrinkWrap: true,
       crossAxisCount: 2,
@@ -209,16 +170,28 @@ class AccountantDashboard extends ConsumerWidget {
       childAspectRatio: 1.4,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        StatCard(label: 'Total Billed', value: 'KES ${fmt.format(d.totalBilled ~/ 1000)}K', icon: Icons.receipt_long_rounded, color: AppColors.roleAccountant, index: 0),
-        StatCard(label: 'Collected', value: 'KES ${fmt.format(d.totalCollected ~/ 1000)}K', icon: Icons.check_circle_rounded, color: AppColors.success, index: 1),
-        StatCard(label: 'Pending', value: 'KES ${fmt.format(d.pending ~/ 1000)}K', icon: Icons.pending_rounded, color: AppColors.warning, subtitle: 'Unpaid', index: 2),
-        StatCard(label: 'Overdue', value: '${d.overdueCount} students', icon: Icons.warning_amber_rounded, color: AppColors.error, subtitle: 'Overdue', index: 3),
+        StatCard(label: 'Total Billed', value: billed, icon: Icons.receipt_long_rounded, color: AppColors.roleAccountant, index: 0),
+        StatCard(label: 'Collected', value: paid, icon: Icons.check_circle_rounded, color: AppColors.success, index: 1),
+        StatCard(label: 'Pending', value: pending, icon: Icons.pending_rounded, color: AppColors.warning, subtitle: 'Unpaid', index: 2),
+        StatCard(label: 'Overdue', value: '$overdue students', icon: Icons.warning_amber_rounded, color: AppColors.error, subtitle: overdue > 0 ? 'Overdue' : null, index: 3),
       ],
     );
   }
 
-  Widget _buildCollectionsChart(AccountantDashboardData d, NumberFormat fmt) {
-    final maxVal = d.monthlyCollections.map((e) => e.amount).reduce((a, b) => a > b ? a : b);
+  Widget _buildCollectionsChart(Map<String, dynamic> d) {
+    final monthly = (d['monthly'] as List?) ?? [];
+    if (monthly.isEmpty) {
+      return GlassCard(
+        padding: const EdgeInsets.all(20),
+        child: const Center(
+          child: Text('No collection data available', style: TextStyle(color: AppColors.textSecondary)),
+        ),
+      );
+    }
+
+    final amounts = monthly.map((m) => ((m as Map)['amount'] as num?)?.toDouble() ?? 0.0).toList();
+    final maxVal  = amounts.isEmpty ? 1.0 : amounts.reduce((a, b) => a > b ? a : b);
+    final chartMax = maxVal > 0 ? maxVal * 1.25 : 100.0;
 
     return GlassCard(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
@@ -227,21 +200,24 @@ class AccountantDashboard extends ConsumerWidget {
         child: BarChart(
           BarChartData(
             alignment: BarChartAlignment.spaceAround,
-            maxY: maxVal * 1.2,
+            maxY: chartMax,
             minY: 0,
             barTouchData: BarTouchData(
               touchTooltipData: BarTouchTooltipData(
                 getTooltipColor: (_) => AppColors.surface2,
-                getTooltipItem: (group, _, rod, __) => BarTooltipItem(
-                  '${d.monthlyCollections[group.x].month}\n',
-                  const TextStyle(color: AppColors.textSecondary, fontSize: 11),
-                  children: [
-                    TextSpan(
-                      text: 'KES ${fmt.format(rod.toY ~/ 1000)}K',
-                      style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13),
-                    ),
-                  ],
-                ),
+                getTooltipItem: (group, _, rod, __) {
+                  final m = monthly[group.x] as Map;
+                  return BarTooltipItem(
+                    '${m['month']}\n',
+                    const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+                    children: [
+                      TextSpan(
+                        text: 'UGX ${_fmtK(rod.toY)}',
+                        style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700, fontSize: 13),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             titlesData: FlTitlesData(
@@ -250,10 +226,10 @@ class AccountantDashboard extends ConsumerWidget {
                   showTitles: true,
                   getTitlesWidget: (v, _) {
                     final i = v.toInt();
-                    if (i < 0 || i >= d.monthlyCollections.length) return const SizedBox();
+                    if (i < 0 || i >= monthly.length) return const SizedBox();
                     return Padding(
                       padding: const EdgeInsets.only(top: 6),
-                      child: Text(d.monthlyCollections[i].month,
+                      child: Text((monthly[i] as Map)['month']?.toString() ?? '',
                           style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
                     );
                   },
@@ -263,12 +239,10 @@ class AccountantDashboard extends ConsumerWidget {
               leftTitles: AxisTitles(
                 sideTitles: SideTitles(
                   showTitles: true,
-                  reservedSize: 44,
+                  reservedSize: 52,
                   getTitlesWidget: (v, _) {
-                    if (v == 0) return const SizedBox();
-                    if (v % 200000 != 0) return const SizedBox();
-                    return Text('${(v / 1000).toStringAsFixed(0)}K',
-                        style: const TextStyle(color: AppColors.textHint, fontSize: 10));
+                    if (v == 0 || (chartMax > 10000 && v % (chartMax / 4).round() != 0)) return const SizedBox();
+                    return Text(_fmtK(v), style: const TextStyle(color: AppColors.textHint, fontSize: 9));
                   },
                 ),
               ),
@@ -278,16 +252,17 @@ class AccountantDashboard extends ConsumerWidget {
             gridData: FlGridData(
               show: true,
               drawHorizontalLine: true,
-              horizontalInterval: 200000,
+              horizontalInterval: chartMax / 4,
               getDrawingHorizontalLine: (_) => FlLine(color: Colors.white.withOpacity(0.05), strokeWidth: 1),
               drawVerticalLine: false,
             ),
             borderData: FlBorderData(show: false),
-            barGroups: d.monthlyCollections.asMap().entries.map((e) {
-              final isLatest = e.key == d.monthlyCollections.length - 1;
+            barGroups: monthly.asMap().entries.map((e) {
+              final isLatest = e.key == monthly.length - 1;
+              final amt = ((e.value as Map)['amount'] as num?)?.toDouble() ?? 0;
               return BarChartGroupData(x: e.key, barRods: [
                 BarChartRodData(
-                  toY: e.value.amount,
+                  toY: amt,
                   gradient: LinearGradient(
                     colors: isLatest
                         ? [AppColors.roleAccountant, AppColors.roleTeacher]
@@ -308,11 +283,10 @@ class AccountantDashboard extends ConsumerWidget {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
-      _QuickAction('New\nInvoice', Icons.note_add_rounded, AppColors.primary, '/accountant/invoices/new'),
-      _QuickAction('Collect\nPayment', Icons.payments_rounded, AppColors.roleAccountant, '/accountant/payments/new'),
-      _QuickAction('View\nReport', Icons.bar_chart_rounded, AppColors.success, '/accountant/reports'),
+      _QuickAction('Invoices', Icons.receipt_long_rounded, AppColors.primary, '/accountant/fees'),
+      _QuickAction('Payments', Icons.payments_rounded, AppColors.roleAccountant, '/accountant/fees'),
+      _QuickAction('Reports', Icons.bar_chart_rounded, AppColors.success, '/accountant/reports'),
     ];
-
     return Row(
       children: actions.map((a) => Expanded(
         child: Padding(
@@ -341,40 +315,64 @@ class AccountantDashboard extends ConsumerWidget {
     );
   }
 
-  Widget _buildPaymentsList(AccountantDashboardData d, NumberFormat fmt) {
+  Widget _buildPaymentsList(Map<String, dynamic> d) {
+    final payments = (d['recent_payments'] as List?) ?? [];
+    if (payments.isEmpty) {
+      return GlassCard(
+        padding: const EdgeInsets.all(20),
+        child: const Center(
+          child: Column(children: [
+            Icon(Icons.payments_outlined, color: AppColors.textHint, size: 36),
+            SizedBox(height: 8),
+            Text('No payments recorded yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+          ]),
+        ),
+      ).animate(delay: 400.ms).fadeIn();
+    }
+
+    final methodColors = {
+      'cash': AppColors.success,
+      'bank': AppColors.primary,
+      'momo': AppColors.accent,
+      'mobile_money': AppColors.accent,
+    };
+
     return Column(
-      children: d.recentPayments.asMap().entries.map((e) {
-        final p = e.value;
-        final idx = e.key;
+      children: payments.take(6).toList().asMap().entries.map((e) {
+        final p          = e.value as Map;
+        final idx        = e.key;
+        final name       = p['student_name']?.toString() ?? 'Unknown';
+        final amount     = (p['amount'] as num?)?.toDouble() ?? 0;
+        final method     = (p['payment_method'] ?? p['method'])?.toString() ?? 'Cash';
+        final date       = p['payment_date']?.toString() ?? p['created_at']?.toString() ?? '';
+        final color      = methodColors[method.toLowerCase()] ?? AppColors.textSecondary;
+        final initials   = _initials(name);
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: GlassCard(
             padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                AvatarWidget(
-                  initials: _initials(p.studentName),
-                  color: p.methodColor,
-                  size: 42,
-                ),
+                AvatarWidget(initials: initials, color: color, size: 42),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(p.studentName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                       const SizedBox(height: 3),
-                      Text(p.date, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                      Text(_fmtDate(date), style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                     ],
                   ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('KES ${fmt.format(p.amount)}',
+                    Text('UGX ${_fmtNum(amount)}',
                         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                     const SizedBox(height: 4),
-                    StatusBadge(label: p.method, color: p.methodColor),
+                    StatusBadge(label: method, color: color),
                   ],
                 ),
               ],
@@ -386,10 +384,31 @@ class AccountantDashboard extends ConsumerWidget {
   }
 
   String _initials(String name) {
-    final parts = name.trim().split(' ');
+    final parts = name.trim().split(' ').where((p) => p.isNotEmpty).toList();
     if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
+
+  String _fmtK(double v) {
+    if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(1)}M';
+    if (v >= 1000)    return '${(v / 1000).toStringAsFixed(0)}K';
+    return v.toStringAsFixed(0);
+  }
+
+  String _fmtNum(double v) {
+    return v.toStringAsFixed(0).replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  }
+
+  String _fmtDate(String d) {
+    if (d.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(d);
+      return '${dt.day} ${_months[dt.month - 1]} ${dt.year}';
+    } catch (_) { return d; }
+  }
+
+  static const _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 }
 
 class _QuickAction {

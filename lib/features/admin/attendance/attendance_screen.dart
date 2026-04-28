@@ -1,48 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../../core/services/api_service.dart';
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
+// ── Providers ─────────────────────────────────────────────────────────────────
 
-const _classes = ['Grade 7A', 'Grade 7B', 'Grade 8A', 'Grade 8B', 'Grade 9A', 'Grade 9B'];
+final classesListProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  final res = await ApiService().get('/classes-list');
+  final data = res.data;
+  if (data is Map) return List<dynamic>.from(data['data'] ?? data['classes'] ?? []);
+  return List<dynamic>.from(data ?? []);
+});
 
-const _classMockStudents = {
-  'Grade 7A': ['Amara Osei', 'Brian Mukasa', 'Chloe Wanjiru', 'David Kamau', 'Esther Auko'],
-  'Grade 7B': ['Faith Otieno', 'George Lule', 'Hannah Juma', 'Isaac Ndung\'u', 'Joy Nalwanga'],
-  'Grade 8A': ['Kevin Mwangi', 'Linda Ssali', 'Moses Kariuki', 'Nancy Akello', 'Oscar Tendo'],
-  'Grade 8B': ['Phoebe Nyambura', 'Quest Obuya', 'Rachel Adong', 'Samuel Kimani', 'Tina Namutebi'],
-  'Grade 9A': ['Umar Hassan', 'Violet Kerubo', 'Walter Opondo', 'Xenia Nakakawa', 'Yusuf Otieno'],
-  'Grade 9B': ['Zara Mukami', 'Abel Ssenyonga', 'Betty Awino', 'Calvin Rotich', 'Debra Achieng'],
-};
-
-enum AttendanceStatus { none, present, absent, late }
+final attendanceRecordsProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>, Map<String, String>>((ref, params) async {
+  final res = await ApiService().get('/attendance', params: params);
+  return Map<String, dynamic>.from(res.data as Map);
+});
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-class AdminAttendanceScreen extends StatefulWidget {
+enum _Status { none, present, absent, late }
+
+class AdminAttendanceScreen extends ConsumerStatefulWidget {
   const AdminAttendanceScreen({super.key});
 
   @override
-  State<AdminAttendanceScreen> createState() => _AdminAttendanceScreenState();
+  ConsumerState<AdminAttendanceScreen> createState() => _AdminAttendanceScreenState();
 }
 
-class _AdminAttendanceScreenState extends State<AdminAttendanceScreen> {
+class _AdminAttendanceScreenState extends ConsumerState<AdminAttendanceScreen> {
   DateTime _date = DateTime.now();
-  String _selectedClass = 'Grade 7A';
-  final Map<String, AttendanceStatus> _attendance = {};
+  String? _selectedClassId;
+  String _selectedClassName = '';
+  final Map<String, _Status> _attendance = {};
   bool _submitting = false;
 
-  List<String> get _students => _classMockStudents[_selectedClass] ?? [];
+  String get _dateStr =>
+      '${_date.year}-${_date.month.toString().padLeft(2, '0')}-${_date.day.toString().padLeft(2, '0')}';
 
-  int get _presentCount => _attendance.values.where((v) => v == AttendanceStatus.present).length;
-  int get _absentCount  => _attendance.values.where((v) => v == AttendanceStatus.absent).length;
-  int get _lateCount    => _attendance.values.where((v) => v == AttendanceStatus.late).length;
-
-  void _setStatus(String name, AttendanceStatus status) {
-    setState(() => _attendance[name] = status);
-  }
+  int _count(_Status s) => _attendance.values.where((v) => v == s).length;
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -52,30 +52,75 @@ class _AdminAttendanceScreenState extends State<AdminAttendanceScreen> {
       lastDate: DateTime.now(),
       builder: (ctx, child) => Theme(
         data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface1),
+          colorScheme: const ColorScheme.dark(
+              primary: AppColors.primary, surface: AppColors.surface1),
         ),
         child: child!,
       ),
     );
-    if (picked != null) setState(() => _date = picked);
+    if (picked != null) setState(() { _date = picked; _attendance.clear(); });
   }
 
-  Future<void> _submit() async {
+  Future<void> _submit(List<dynamic> students) async {
+    if (_selectedClassId == null) return;
     setState(() => _submitting = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _submitting = false);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Attendance submitted for $_selectedClass'),
+    try {
+      final records = students.map((s) {
+        final sid = s['id'].toString();
+        final status = _attendance[sid] ?? _Status.none;
+        return {
+          'student_id': s['id'],
+          'status': status == _Status.present
+              ? 'present'
+              : status == _Status.absent
+                  ? 'absent'
+                  : status == _Status.late
+                      ? 'late'
+                      : 'absent',
+        };
+      }).toList();
+
+      await ApiService().post('/attendance/mark', data: {
+        'class_id': _selectedClassId,
+        'date': _dateStr,
+        'attendance': records,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Attendance submitted for $_selectedClassName'),
           backgroundColor: AppColors.success,
-        ),
-      );
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+        ref.invalidate(attendanceRecordsProvider);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Failed to submit attendance'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
+  String _initials(String name) {
+    final p = name.trim().split(' ');
+    return p.length >= 2 ? '${p[0][0]}${p[1][0]}'.toUpperCase() : name[0].toUpperCase();
+  }
+
+  static const _avatarColors = [
+    AppColors.primary, AppColors.accent, AppColors.roleTeacher,
+    AppColors.warning, AppColors.success,
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final classesAsync = ref.watch(classesListProvider);
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       appBar: AppBar(
@@ -85,166 +130,263 @@ class _AdminAttendanceScreenState extends State<AdminAttendanceScreen> {
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Mark Attendance', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+        title: const Text('Mark Attendance',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
-        child: Column(
-          children: [
-            // Controls
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Date picker row
-                  GlassCard(
-                    onTap: _pickDate,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            '${_date.day.toString().padLeft(2, '0')} / ${_date.month.toString().padLeft(2, '0')} / ${_date.year}',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                          ),
-                        ),
-                        const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
-                      ],
-                    ),
-                  ).animate().fadeIn(duration: 300.ms),
+        child: classesAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+          error: (e, _) => Center(
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
+              const SizedBox(height: 12),
+              const Text('Failed to load classes',
+                  style: TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(classesListProvider),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                child: const Text('Retry'),
+              ),
+            ]),
+          ),
+          data: (classes) {
+            if (_selectedClassId == null && classes.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _selectedClassId = classes[0]['id'].toString();
+                    _selectedClassName = classes[0]['name']?.toString() ?? '';
+                  });
+                }
+              });
+            }
 
-                  const SizedBox(height: 10),
+            if (_selectedClassId == null) {
+              return const Center(
+                  child: Text('No classes available',
+                      style: TextStyle(color: AppColors.textSecondary)));
+            }
 
-                  // Class dropdown
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface2,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white.withOpacity(0.07)),
+            final attendanceAsync = ref.watch(attendanceRecordsProvider(
+                {'class_id': _selectedClassId!, 'date': _dateStr}));
+
+            return attendanceAsync.when(
+              loading: () => Column(children: [
+                _buildControls(classes),
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: 6,
+                    itemBuilder: (_, i) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ShimmerBox(height: 60, borderRadius: 14),
                     ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _selectedClass,
-                        isExpanded: true,
-                        dropdownColor: AppColors.surface1,
-                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                        icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
-                        items: _classes.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                        onChanged: (v) {
-                          if (v != null) setState(() { _selectedClass = v; _attendance.clear(); });
+                  ),
+                ),
+              ]),
+              error: (e, _) => Column(children: [
+                _buildControls(classes),
+                Expanded(
+                  child: Center(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 48),
+                      const SizedBox(height: 12),
+                      const Text('Failed to load students',
+                          style: TextStyle(color: AppColors.textSecondary)),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => ref.invalidate(attendanceRecordsProvider),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                        child: const Text('Retry'),
+                      ),
+                    ]),
+                  ),
+                ),
+              ]),
+              data: (data) {
+                final students = List<dynamic>.from(
+                    data['students'] ?? data['data'] ?? []);
+
+                // Pre-fill status from existing attendance
+                for (final s in students) {
+                  final sid = s['id'].toString();
+                  if (!_attendance.containsKey(sid)) {
+                    final existing = s['attendance_status']?.toString();
+                    if (existing != null) {
+                      _attendance[sid] = existing == 'present'
+                          ? _Status.present
+                          : existing == 'late'
+                              ? _Status.late
+                              : existing == 'absent'
+                                  ? _Status.absent
+                                  : _Status.none;
+                    }
+                  }
+                }
+
+                return Column(children: [
+                  _buildControls(classes, students: students),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: () async => ref.invalidate(attendanceRecordsProvider),
+                      color: AppColors.primary,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        itemCount: students.length,
+                        itemBuilder: (ctx, i) {
+                          final s = students[i];
+                          final sid = s['id'].toString();
+                          final name =
+                              '${s['first_name'] ?? ''} ${s['last_name'] ?? ''}'.trim();
+                          final status = _attendance[sid] ?? _Status.none;
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: GlassCard(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                              child: Row(children: [
+                                AvatarWidget(
+                                  initials: _initials(name),
+                                  color: _avatarColors[i % _avatarColors.length],
+                                  size: 40,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(name,
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textPrimary)),
+                                ),
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                                  _AttBtn(
+                                    label: 'P',
+                                    color: AppColors.success,
+                                    active: status == _Status.present,
+                                    onTap: () => setState(() => _attendance[sid] = _Status.present),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _AttBtn(
+                                    label: 'A',
+                                    color: AppColors.error,
+                                    active: status == _Status.absent,
+                                    onTap: () => setState(() => _attendance[sid] = _Status.absent),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  _AttBtn(
+                                    label: 'L',
+                                    color: AppColors.warning,
+                                    active: status == _Status.late,
+                                    onTap: () => setState(() => _attendance[sid] = _Status.late),
+                                  ),
+                                ]),
+                              ]),
+                            ),
+                          ).animate(delay: Duration(milliseconds: i * 40))
+                              .fadeIn()
+                              .slideX(begin: 0.05, end: 0);
                         },
                       ),
                     ),
-                  ).animate(delay: 100.ms).fadeIn(),
-
-                  const SizedBox(height: 10),
-
-                  // Summary bar
-                  GlassCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: [
-                        _SummaryBadge('Total', _students.length, AppColors.textSecondary),
-                        _vDivider(),
-                        _SummaryBadge('Present', _presentCount, AppColors.success),
-                        _vDivider(),
-                        _SummaryBadge('Absent', _absentCount, AppColors.error),
-                        _vDivider(),
-                        _SummaryBadge('Late', _lateCount, AppColors.warning),
-                      ],
-                    ),
-                  ).animate(delay: 150.ms).fadeIn(),
-                ],
-              ),
-            ),
-
-            // Student list
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                itemCount: _students.length,
-                itemBuilder: (context, i) {
-                  final name   = _students[i];
-                  final status = _attendance[name] ?? AttendanceStatus.none;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: GlassCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      child: Row(
-                        children: [
-                          AvatarWidget(
-                            initials: _initials(name),
-                            color: _avatarColor(i),
-                            size: 40,
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                          ),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _AttBtn(
-                                label: 'P',
-                                color: AppColors.success,
-                                active: status == AttendanceStatus.present,
-                                onTap: () => _setStatus(name, AttendanceStatus.present),
-                              ),
-                              const SizedBox(width: 6),
-                              _AttBtn(
-                                label: 'A',
-                                color: AppColors.error,
-                                active: status == AttendanceStatus.absent,
-                                onTap: () => _setStatus(name, AttendanceStatus.absent),
-                              ),
-                              const SizedBox(width: 6),
-                              _AttBtn(
-                                label: 'L',
-                                color: AppColors.warning,
-                                active: status == AttendanceStatus.late,
-                                onTap: () => _setStatus(name, AttendanceStatus.late),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ).animate(delay: Duration(milliseconds: i * 40)).fadeIn().slideX(begin: 0.05, end: 0);
-                },
-              ),
-            ),
-
-            // Submit button
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-              child: GradientButton(
-                label: 'Submit Attendance',
-                loading: _submitting,
-                onTap: _submit,
-              ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.2),
-            ),
-          ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    child: GradientButton(
+                      label: 'Submit Attendance',
+                      loading: _submitting,
+                      onTap: () => _submit(students),
+                    ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.2),
+                  ),
+                ]);
+              },
+            );
+          },
         ),
       ),
     );
   }
 
+  Widget _buildControls(List<dynamic> classes, {List<dynamic> students = const []}) {
+    final total = students.length;
+    final present = _count(_Status.present);
+    final absent = _count(_Status.absent);
+    final late = _count(_Status.late);
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(children: [
+        GlassCard(
+          onTap: _pickDate,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(children: [
+            const Icon(Icons.calendar_today_rounded, color: AppColors.primary, size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                '${_date.day.toString().padLeft(2, '0')} / ${_date.month.toString().padLeft(2, '0')} / ${_date.year}',
+                style: const TextStyle(
+                    fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+              ),
+            ),
+            const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
+          ]),
+        ).animate().fadeIn(duration: 300.ms),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: AppColors.surface2,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withOpacity(0.07)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: _selectedClassId,
+              isExpanded: true,
+              dropdownColor: AppColors.surface1,
+              style: const TextStyle(
+                  color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+              icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
+              items: classes.map((c) => DropdownMenuItem(
+                    value: c['id'].toString(),
+                    child: Text(c['name']?.toString() ?? ''),
+                  )).toList(),
+              onChanged: (v) {
+                if (v != null) {
+                  final cls = classes.firstWhere((c) => c['id'].toString() == v, orElse: () => {});
+                  setState(() {
+                    _selectedClassId = v;
+                    _selectedClassName = cls['name']?.toString() ?? '';
+                    _attendance.clear();
+                  });
+                }
+              },
+            ),
+          ),
+        ).animate(delay: 100.ms).fadeIn(),
+        const SizedBox(height: 10),
+        GlassCard(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _SummaryBadge('Total', total, AppColors.textSecondary),
+              _vDivider(),
+              _SummaryBadge('Present', present, AppColors.success),
+              _vDivider(),
+              _SummaryBadge('Absent', absent, AppColors.error),
+              _vDivider(),
+              _SummaryBadge('Late', late, AppColors.warning),
+            ],
+          ),
+        ).animate(delay: 150.ms).fadeIn(),
+      ]),
+    );
+  }
+
   Widget _vDivider() => Container(width: 1, height: 30, color: Colors.white12);
-
-  String _initials(String name) {
-    final p = name.split(' ');
-    return p.length >= 2 ? '${p[0][0]}${p[1][0]}' : name[0];
-  }
-
-  Color _avatarColor(int i) {
-    const colors = [AppColors.primary, AppColors.accent, AppColors.roleTeacher, AppColors.warning, AppColors.success];
-    return colors[i % colors.length];
-  }
 }
 
 // ── Sub-widgets ───────────────────────────────────────────────────────────────
@@ -257,12 +399,13 @@ class _SummaryBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text('$count', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
-      Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
-    ],
-  );
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('$count',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
+          Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
+        ],
+      );
 }
 
 class _AttBtn extends StatelessWidget {
@@ -270,30 +413,28 @@ class _AttBtn extends StatelessWidget {
   final Color color;
   final bool active;
   final VoidCallback onTap;
+
   const _AttBtn({required this.label, required this.color, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: AnimatedContainer(
-      duration: 150.ms,
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: active ? color : color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: active ? color : color.withOpacity(0.25)),
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: active ? Colors.white : color,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: 150.ms,
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: active ? color : color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: active ? color : color.withOpacity(0.25)),
+          ),
+          child: Center(
+            child: Text(label,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: active ? Colors.white : color)),
           ),
         ),
-      ),
-    ),
-  );
+      );
 }

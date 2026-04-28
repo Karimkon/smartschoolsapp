@@ -242,7 +242,7 @@ class SuperAdminDashboard extends ConsumerWidget {
         StatCard(label: 'Total Schools', value: '${d.totalSchools}', icon: Icons.account_balance_rounded, color: AppColors.roleSuperAdmin, index: 0),
         StatCard(label: 'Active Schools', value: '${d.activeSchools}', icon: Icons.verified_rounded, color: AppColors.success, index: 1),
         StatCard(label: 'Total Students', value: fmt.format(d.totalStudents), icon: Icons.people_rounded, color: AppColors.primary, index: 2),
-        StatCard(label: 'Revenue (MRR)', value: 'KES ${fmt.format(d.totalRevenue ~/ 1000)}K', icon: Icons.trending_up_rounded, color: AppColors.roleAccountant, index: 3),
+        StatCard(label: 'Revenue (MRR)', value: 'UGX ${fmt.format(d.totalRevenue ~/ 1000)}K', icon: Icons.trending_up_rounded, color: AppColors.roleAccountant, index: 3),
       ],
     );
   }

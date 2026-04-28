@@ -152,9 +152,9 @@ IconData _categoryIcon(String cat) {
 
 String _formatAmount(double amount) {
   if (amount >= 1000) {
-    return 'KES ${(amount / 1000).toStringAsFixed(1)}K';
+    return 'UGX ${(amount / 1000).toStringAsFixed(1)}K';
   }
-  return 'KES ${amount.toStringAsFixed(0)}';
+  return 'UGX ${amount.toStringAsFixed(0)}';
 }
 
 const List<String> _months = [
@@ -861,7 +861,7 @@ class _AddExpenseSheetState extends State<_AddExpenseSheet> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _Label('Amount (KES)'),
+                        _Label('Amount (UGX)'),
                         const SizedBox(height: 8),
                         _Field(
                           controller: _amtCtrl,

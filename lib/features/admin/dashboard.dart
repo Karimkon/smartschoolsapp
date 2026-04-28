@@ -10,41 +10,8 @@ import '../../core/services/api_service.dart';
 
 // ── Data provider ─────────────────────────────────────────────────────────────
 final adminDashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  try {
-    final res = await ApiService().get('/dashboard');
-    return Map<String, dynamic>.from(res.data);
-  } catch (_) {
-    // Fallback mock data when API not yet available
-    return {
-      'stats': {
-        'students': 842, 'teachers': 58,
-        'collected_fmt': '12.4M UGX', 'pending_fmt': '3.2M UGX',
-      },
-      'attendance_today': 94,
-      'enrollment': [
-        {'name': 'P.1', 'count': 120}, {'name': 'P.2', 'count': 115},
-        {'name': 'P.3', 'count': 108}, {'name': 'P.4', 'count': 98},
-        {'name': 'P.5', 'count': 95},  {'name': 'P.6', 'count': 90},
-        {'name': 'P.7', 'count': 82},
-      ],
-      'fee_breakdown': [
-        {'name': 'Paid', 'value': 620, 'color': 0xFF10B981},
-        {'name': 'Partial', 'value': 145, 'color': 0xFFF59E0B},
-        {'name': 'Pending', 'value': 77, 'color': 0xFFEF4444},
-      ],
-      'recent_activity': [
-        {'text': 'New student enrolled: John Mukasa', 'time': '5m ago'},
-        {'text': 'Fee payment received: Mary Tendo', 'time': '22m ago'},
-        {'text': 'Teacher added: Mr. Paul Ssali', 'time': '1h ago'},
-        {'text': 'Attendance marked for P.3A', 'time': '2h ago'},
-      ],
-      'upcoming_events': [
-        {'title': 'End of Term Exams', 'date': 'Apr 28, 2026'},
-        {'title': 'Sports Day', 'date': 'May 10, 2026'},
-        {'title': 'Prize Giving Day', 'date': 'May 18, 2026'},
-      ],
-    };
-  }
+  final res = await ApiService().get('/dashboard');
+  return Map<String, dynamic>.from(res.data);
 });
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -100,7 +67,10 @@ class AdminDashboard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  AvatarWidget(initials: name.isNotEmpty ? name[0] : 'A', color: AppColors.roleAdmin, size: 46),
+                  GestureDetector(
+                    onTap: () => context.go('/admin/profile'),
+                    child: AvatarWidget(initials: name.isNotEmpty ? name[0] : 'A', color: AppColors.roleAdmin, size: 46),
+                  ),
                 ],
               ).animate().fadeIn(duration: 400.ms),
             ),
@@ -117,7 +87,7 @@ class AdminDashboard extends ConsumerWidget {
                 StatCard(label: 'Pending',   value: '${stats['pending_fmt']}',    icon: Icons.pending_actions_rounded,         color: AppColors.warning,     index: 3),
               ]),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.55,
+                crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: 128,
               ),
             ),
           ),

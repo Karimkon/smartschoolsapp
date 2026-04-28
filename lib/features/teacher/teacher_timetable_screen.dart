@@ -1,137 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
+import '../../core/services/api_service.dart';
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
+// ── Provider ──────────────────────────────────────────────────────────────────
 
-class _Period {
-  final String time, subject, className, room;
-  final Color color;
-  const _Period({required this.time, required this.subject, required this.className, required this.room, required this.color});
-}
-
-const _subjectColors = {
-  'Mathematics': AppColors.primary,
-  'English':     AppColors.roleTeacher,
-  'Science':     AppColors.accent,
-  'History':     AppColors.warning,
-  'Kiswahili':   AppColors.roleAccountant,
-  'Geography':   AppColors.success,
-  'Free':        AppColors.textHint,
-};
-
-final _timetableData = {
-  'Mon': [
-    _Period(time: '07:00', subject: 'Mathematics', className: 'Grade 8A', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '07:45', subject: 'Mathematics', className: 'Grade 9B', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '08:30', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '09:15', subject: 'Mathematics', className: 'Grade 7A', room: 'Room 05', color: AppColors.primary),
-    _Period(time: '10:00', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '10:45', subject: 'Mathematics', className: 'Grade 10A',room: 'Room 14', color: AppColors.primary),
-    _Period(time: '11:30', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '13:00', subject: 'Mathematics', className: 'Grade 8B', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '13:45', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '14:30', subject: 'Mathematics', className: 'Grade 9A', room: 'Room 08', color: AppColors.primary),
-  ],
-  'Tue': [
-    _Period(time: '07:00', subject: 'Mathematics', className: 'Grade 9A', room: 'Room 08', color: AppColors.primary),
-    _Period(time: '07:45', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '08:30', subject: 'Mathematics', className: 'Grade 10A',room: 'Room 14', color: AppColors.primary),
-    _Period(time: '09:15', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '10:00', subject: 'Mathematics', className: 'Grade 7A', room: 'Room 05', color: AppColors.primary),
-    _Period(time: '10:45', subject: 'Mathematics', className: 'Grade 8A', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '11:30', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '13:00', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '13:45', subject: 'Mathematics', className: 'Grade 9B', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '14:30', subject: 'Mathematics', className: 'Grade 8B', room: 'Room 12', color: AppColors.primary),
-  ],
-  'Wed': [
-    _Period(time: '07:00', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '07:45', subject: 'Mathematics', className: 'Grade 8A', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '08:30', subject: 'Mathematics', className: 'Grade 7A', room: 'Room 05', color: AppColors.primary),
-    _Period(time: '09:15', subject: 'Mathematics', className: 'Grade 9A', room: 'Room 08', color: AppColors.primary),
-    _Period(time: '10:00', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '10:45', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '11:30', subject: 'Mathematics', className: 'Grade 10A',room: 'Room 14', color: AppColors.primary),
-    _Period(time: '13:00', subject: 'Mathematics', className: 'Grade 8B', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '13:45', subject: 'Mathematics', className: 'Grade 9B', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '14:30', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-  ],
-  'Thu': [
-    _Period(time: '07:00', subject: 'Mathematics', className: 'Grade 7A', room: 'Room 05', color: AppColors.primary),
-    _Period(time: '07:45', subject: 'Mathematics', className: 'Grade 9B', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '08:30', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '09:15', subject: 'Mathematics', className: 'Grade 8B', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '10:00', subject: 'Mathematics', className: 'Grade 10A',room: 'Room 14', color: AppColors.primary),
-    _Period(time: '10:45', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '11:30', subject: 'Mathematics', className: 'Grade 8A', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '13:00', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '13:45', subject: 'Mathematics', className: 'Grade 9A', room: 'Room 08', color: AppColors.primary),
-    _Period(time: '14:30', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-  ],
-  'Fri': [
-    _Period(time: '07:00', subject: 'Mathematics', className: 'Grade 8A', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '07:45', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '08:30', subject: 'Mathematics', className: 'Grade 9B', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '09:15', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '10:00', subject: 'Mathematics', className: 'Grade 7A', room: 'Room 05', color: AppColors.primary),
-    _Period(time: '10:45', subject: 'Mathematics', className: 'Grade 8B', room: 'Room 12', color: AppColors.primary),
-    _Period(time: '11:30', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-    _Period(time: '13:00', subject: 'Mathematics', className: 'Grade 9A', room: 'Room 08', color: AppColors.primary),
-    _Period(time: '13:45', subject: 'Mathematics', className: 'Grade 10A',room: 'Room 14', color: AppColors.primary),
-    _Period(time: '14:30', subject: 'Free',         className: '—',        room: '—',       color: AppColors.textHint),
-  ],
-};
-
-const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+final teacherTimetableProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final res = await ApiService().get('/timetable');
+  return Map<String, dynamic>.from(res.data as Map);
+});
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
-class TeacherTimetableScreen extends StatefulWidget {
+class TeacherTimetableScreen extends ConsumerStatefulWidget {
   const TeacherTimetableScreen({super.key});
 
   @override
-  State<TeacherTimetableScreen> createState() => _TeacherTimetableScreenState();
+  ConsumerState<TeacherTimetableScreen> createState() => _TeacherTimetableScreenState();
 }
 
-class _TeacherTimetableScreenState extends State<TeacherTimetableScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
-  final _now = DateTime.now();
+class _TeacherTimetableScreenState extends ConsumerState<TeacherTimetableScreen> {
+  String _selectedDay = '';
 
-  @override
-  void initState() {
-    super.initState();
-    // Default to today's weekday (Mon=0 ... Fri=4)
-    final todayIdx = (_now.weekday - 1).clamp(0, 4);
-    _tabs = TabController(length: 5, vsync: this, initialIndex: todayIdx);
-  }
+  static const _days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+  static const _dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
+  static const _colors = [
+    AppColors.primary, AppColors.roleTeacher, AppColors.accent,
+    AppColors.warning, AppColors.success, AppColors.roleAccountant,
+  ];
 
-  bool _isToday(int tabIndex) => tabIndex == (_now.weekday - 1).clamp(0, 4);
-
-  String _currentTimeStr() {
-    return '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
-  }
-
-  bool _isCurrentPeriod(_Period p) {
-    final pHour   = int.parse(p.time.split(':')[0]);
-    final pMinute = int.parse(p.time.split(':')[1]);
-    final pStart  = pHour * 60 + pMinute;
-    final pEnd    = pStart + 45;
-    final nowMin  = _now.hour * 60 + _now.minute;
-    return nowMin >= pStart && nowMin < pEnd;
+  String _todayKey() {
+    final names = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    return names[DateTime.now().weekday - 1];
   }
 
   @override
   Widget build(BuildContext context) {
+    final async = ref.watch(teacherTimetableProvider);
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       appBar: AppBar(
@@ -143,160 +53,252 @@ class _TeacherTimetableScreenState extends State<TeacherTimetableScreen>
         ),
         title: const Text('My Timetable', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(_currentTimeStr(), style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w700)),
-              ),
-            ),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
+            onPressed: () => ref.invalidate(teacherTimetableProvider),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabs,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textSecondary,
-          labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          tabs: List.generate(5, (i) => Tab(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(_days[i]),
-                if (_isToday(i)) ...[
-                  const SizedBox(width: 4),
-                  Container(
-                    width: 6, height: 6,
-                    decoration: const BoxDecoration(color: AppColors.error, shape: BoxShape.circle),
-                  ),
-                ],
-              ],
-            ),
-          )),
-        ),
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
-        child: TabBarView(
-          controller: _tabs,
-          children: List.generate(5, (dayIdx) {
-            final dayKey  = _days[dayIdx];
-            final periods = _timetableData[dayKey] ?? [];
-            final isToday = _isToday(dayIdx);
+        child: async.when(
+          loading: () => ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const ShimmerCard(height: 48),
+              const SizedBox(height: 16),
+              ...List.generate(6, (_) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: ShimmerCard(height: 80),
+              )),
+            ],
+          ),
+          error: (e, _) => Center(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Icon(Icons.cloud_off_rounded, color: AppColors.textHint, size: 52),
+              const SizedBox(height: 12),
+              const Text('Could not load timetable', style: TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(teacherTimetableProvider),
+                child: const Text('Retry'),
+              ),
+            ]),
+          ),
+          data: (d) {
+            final timetable = d['timetable'] as Map? ?? {};
 
-            return ListView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-              itemCount: periods.length,
-              itemBuilder: (_, i) {
-                final p       = periods[i];
-                final current = isToday && _isCurrentPeriod(p);
-                final isFree  = p.subject == 'Free';
+            final available = _days.where((day) {
+              final slots = timetable[day];
+              return slots is List && slots.isNotEmpty;
+            }).toList();
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    children: [
-                      // Time column
-                      SizedBox(
-                        width: 48,
-                        child: Text(
-                          p.time,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: current ? AppColors.error : AppColors.textHint,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Period card
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isFree
-                                ? AppColors.surface1.withOpacity(0.4)
-                                : AppColors.surface1,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: current
-                                  ? AppColors.error
-                                  : isFree
-                                      ? Colors.white.withOpacity(0.04)
-                                      : p.color.withOpacity(0.3),
-                              width: current ? 1.5 : 1,
-                            ),
-                          ),
-                          child: isFree
-                              ? Row(
-                                  children: [
+            if (available.isEmpty) {
+              return Center(
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Icon(Icons.calendar_today_outlined, color: AppColors.textHint, size: 64),
+                  const SizedBox(height: 16),
+                  const Text('No timetable assigned yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+                ]),
+              );
+            }
+
+            if (_selectedDay.isEmpty) {
+              final today = _todayKey();
+              final init = available.contains(today) ? today : available.first;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) setState(() => _selectedDay = init);
+              });
+              _selectedDay = init;
+            }
+
+            final slots = (timetable[_selectedDay] as List?) ?? [];
+
+            return RefreshIndicator(
+              color: AppColors.roleTeacher,
+              backgroundColor: AppColors.surface1,
+              onRefresh: () async => ref.invalidate(teacherTimetableProvider),
+              child: Column(
+                children: [
+                  // Day selector
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: SizedBox(
+                      height: 40,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: available.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (_, i) {
+                          final day  = available[i];
+                          final idx  = _days.indexOf(day);
+                          final label = idx >= 0 ? _dayLabels[idx] : day.substring(0, 3).toUpperCase();
+                          final sel  = day == _selectedDay;
+                          final isToday = day == _todayKey();
+                          return GestureDetector(
+                            onTap: () => setState(() => _selectedDay = day),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: sel ? AppColors.roleTeacher : AppColors.surface2,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isToday && !sel
+                                      ? AppColors.roleTeacher.withOpacity(0.5)
+                                      : Colors.transparent,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(label, style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                                      color: sel ? Colors.white : AppColors.textSecondary)),
+                                  if (isToday) ...[
+                                    const SizedBox(width: 4),
                                     Container(
-                                      width: 4, height: 36,
-                                      decoration: BoxDecoration(color: AppColors.textHint.withOpacity(0.3), borderRadius: BorderRadius.circular(4)),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    const Text('Free Period', style: TextStyle(fontSize: 12, color: AppColors.textHint, fontStyle: FontStyle.italic)),
-                                  ],
-                                )
-                              : Row(
-                                  children: [
-                                    Container(
-                                      width: 4, height: 44,
-                                      decoration: BoxDecoration(color: p.color, borderRadius: BorderRadius.circular(4)),
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(p.subject, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: p.color)),
-                                              ),
-                                              if (current)
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                                  decoration: BoxDecoration(
-                                                    color: AppColors.error.withOpacity(0.15),
-                                                    borderRadius: BorderRadius.circular(8),
-                                                  ),
-                                                  child: const Text('NOW', style: TextStyle(fontSize: 10, color: AppColors.error, fontWeight: FontWeight.w700)),
-                                                ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 3),
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.people_rounded, size: 11, color: AppColors.textSecondary),
-                                              const SizedBox(width: 4),
-                                              Text(p.className, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                                              const SizedBox(width: 10),
-                                              const Icon(Icons.meeting_room_rounded, size: 11, color: AppColors.textSecondary),
-                                              const SizedBox(width: 4),
-                                              Text(p.room, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                                            ],
-                                          ),
-                                        ],
+                                      width: 6, height: 6,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: sel ? Colors.white : AppColors.roleTeacher,
                                       ),
                                     ),
                                   ],
-                                ),
-                        ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    ],
+                    ),
+                  ).animate().fadeIn(duration: 300.ms),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(children: [
+                      Text('${slots.length} class${slots.length != 1 ? 'es' : ''}',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textHint)),
+                    ]),
                   ),
-                ).animate(delay: Duration(milliseconds: i * 40)).fadeIn().slideX(begin: 0.04, end: 0);
-              },
+
+                  Expanded(
+                    child: slots.isEmpty
+                        ? Center(
+                            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                              const Icon(Icons.event_available_rounded, color: AppColors.textHint, size: 48),
+                              const SizedBox(height: 12),
+                              const Text('No classes on this day', style: TextStyle(color: AppColors.textSecondary)),
+                            ]),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                            itemCount: slots.length,
+                            itemBuilder: (_, i) {
+                              final slot    = slots[i] as Map;
+                              final subject = slot['subject_name']?.toString() ?? 'Unknown';
+                              final cls     = slot['class_name']?.toString() ?? '';
+                              final start   = slot['start_time']?.toString() ?? '';
+                              final end     = slot['end_time']?.toString() ?? '';
+                              final room    = slot['room']?.toString() ?? '';
+                              final color   = _colors[i % _colors.length];
+
+                              final now    = DateTime.now();
+                              bool isNow   = false;
+                              bool isPast  = false;
+                              if (start.isNotEmpty) {
+                                try {
+                                  final sp = start.split(':');
+                                  final sh = int.parse(sp[0]);
+                                  final sm = int.parse(sp.length > 1 ? sp[1] : '0');
+                                  final ls = DateTime(now.year, now.month, now.day, sh, sm);
+                                  final ep = end.isNotEmpty ? end.split(':') : null;
+                                  final eh = ep != null ? int.tryParse(ep[0]) ?? sh + 1 : sh + 1;
+                                  final em = ep != null && ep.length > 1 ? int.tryParse(ep[1]) ?? 0 : 0;
+                                  final le = DateTime(now.year, now.month, now.day, eh, em);
+                                  if (_selectedDay == _todayKey()) {
+                                    isNow  = now.isAfter(ls) && now.isBefore(le);
+                                    isPast = now.isAfter(le);
+                                  }
+                                } catch (_) {}
+                              }
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: GlassCard(
+                                  padding: const EdgeInsets.all(14),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 58, height: 58,
+                                        decoration: BoxDecoration(
+                                          color: isNow ? color.withOpacity(0.2) : AppColors.surface2,
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Center(
+                                          child: Text(_fmtTime(start),
+                                              style: TextStyle(
+                                                  fontSize: 11, fontWeight: FontWeight.w700,
+                                                  color: isNow ? color : AppColors.textSecondary)),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(subject, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                            const SizedBox(height: 3),
+                                            Row(children: [
+                                              if (cls.isNotEmpty) ...[
+                                                const Icon(Icons.class_rounded, size: 11, color: AppColors.textSecondary),
+                                                const SizedBox(width: 3),
+                                                Text(cls, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                              ],
+                                              if (cls.isNotEmpty && room.isNotEmpty) const Text(' • ', style: TextStyle(color: AppColors.textHint)),
+                                              if (room.isNotEmpty) ...[
+                                                const Icon(Icons.room_rounded, size: 11, color: AppColors.textHint),
+                                                const SizedBox(width: 3),
+                                                Text(room, style: const TextStyle(fontSize: 12, color: AppColors.textHint)),
+                                              ],
+                                            ]),
+                                            if (end.isNotEmpty)
+                                              Text('Until ${_fmtTime(end)}', style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
+                                          ],
+                                        ),
+                                      ),
+                                      if (isNow)
+                                        StatusBadge(label: 'Now', color: AppColors.success)
+                                      else if (isPast)
+                                        StatusBadge(label: 'Done', color: AppColors.textHint)
+                                      else if (_selectedDay == _todayKey())
+                                        StatusBadge(label: 'Later', color: AppColors.primary),
+                                    ],
+                                  ),
+                                ),
+                              ).animate(delay: Duration(milliseconds: i * 50)).fadeIn().slideY(begin: 0.05, end: 0);
+                            },
+                          ),
+                  ),
+                ],
+              ),
             );
-          }),
+          },
         ),
       ),
     );
+  }
+
+  String _fmtTime(String t) {
+    try {
+      final parts = t.split(':');
+      int h = int.parse(parts[0]);
+      final m = parts.length > 1 ? parts[1] : '00';
+      final suffix = h >= 12 ? 'PM' : 'AM';
+      if (h > 12) h -= 12;
+      if (h == 0) h = 12;
+      return '$h:$m $suffix';
+    } catch (_) { return t; }
   }
 }
