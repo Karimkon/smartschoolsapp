@@ -81,10 +81,10 @@ class AdminDashboard extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
             sliver: SliverGrid(
               delegate: SliverChildListDelegate([
-                StatCard(label: 'Students',  value: '${stats['students']}',       icon: Icons.people_rounded,                  color: AppColors.primary,     index: 0),
-                StatCard(label: 'Teachers',  value: '${stats['teachers']}',       icon: Icons.person_pin_rounded,              color: AppColors.roleTeacher, index: 1),
-                StatCard(label: 'Collected', value: '${stats['collected_fmt']}',  icon: Icons.account_balance_wallet_rounded,  color: AppColors.success,     index: 2),
-                StatCard(label: 'Pending',   value: '${stats['pending_fmt']}',    icon: Icons.pending_actions_rounded,         color: AppColors.warning,     index: 3),
+                StatCard(label: 'Students',  value: '${stats['students']}',       icon: Icons.people_rounded,                  color: AppColors.primary,     index: 0, onTap: () => context.go('/admin/students')),
+                StatCard(label: 'Teachers',  value: '${stats['teachers']}',       icon: Icons.person_pin_rounded,              color: AppColors.roleTeacher, index: 1, onTap: () => context.go('/admin/teachers')),
+                StatCard(label: 'Collected', value: '${stats['collected_fmt']}',  icon: Icons.account_balance_wallet_rounded,  color: AppColors.success,     index: 2, onTap: () => context.go('/admin/fees')),
+                StatCard(label: 'Pending',   value: '${stats['pending_fmt']}',    icon: Icons.pending_actions_rounded,         color: AppColors.warning,     index: 3, onTap: () => context.go('/admin/fees')),
               ]),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: 140,
@@ -100,51 +100,68 @@ class AdminDashboard extends ConsumerWidget {
                 children: [
                   // Attendance ring
                   Expanded(
-                    child: GlassCard(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text("Today's Attendance", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                          const SizedBox(height: 12),
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              SizedBox(
-                                height: 100,
-                                child: PieChart(PieChartData(
-                                  sections: [
-                                    PieChartSectionData(value: attendance.toDouble(), color: AppColors.success, radius: 18, showTitle: false),
-                                    PieChartSectionData(value: (100 - attendance).toDouble(), color: AppColors.surface3, radius: 18, showTitle: false),
+                    child: GestureDetector(
+                      onTap: () => context.go('/admin/attendance'),
+                      child: GlassCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text("Today's Attendance", style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                                const Icon(Icons.arrow_forward_ios_rounded, size: 11, color: AppColors.textHint),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                SizedBox(
+                                  height: 100,
+                                  child: PieChart(PieChartData(
+                                    sections: [
+                                      PieChartSectionData(value: attendance.toDouble(), color: AppColors.success, radius: 18, showTitle: false),
+                                      PieChartSectionData(value: (100 - attendance).toDouble(), color: AppColors.surface3, radius: 18, showTitle: false),
+                                    ],
+                                    centerSpaceRadius: 32,
+                                    sectionsSpace: 3,
+                                  )),
+                                ),
+                                Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('$attendance%', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                                    const Text('Present', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
                                   ],
-                                  centerSpaceRadius: 32,
-                                  sectionsSpace: 3,
-                                )),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text('$attendance%', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                                  const Text('Present', style: TextStyle(fontSize: 10, color: AppColors.textSecondary)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ).animate(delay: 300.ms).fadeIn().slideX(begin: -0.1, end: 0),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ).animate(delay: 300.ms).fadeIn().slideX(begin: -0.1, end: 0),
+                    ),
                   ),
 
                   const SizedBox(width: 12),
 
                   // Fee donut
                   Expanded(
-                    child: GlassCard(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Fee Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                    child: GestureDetector(
+                      onTap: () => context.go('/admin/fees'),
+                      child: GlassCard(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text('Fee Status', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                                const Icon(Icons.arrow_forward_ios_rounded, size: 11, color: AppColors.textHint),
+                              ],
+                            ),
                           const SizedBox(height: 12),
                           SizedBox(
                             height: 100,
@@ -174,12 +191,14 @@ class AdminDashboard extends ConsumerWidget {
                       ),
                     ).animate(delay: 350.ms).fadeIn().slideX(begin: 0.1, end: 0),
                   ),
+                ),
                 ],
               ),
             ),
           ),
 
           // ── Enrolment Chart ──────────────────────────────────────
+          if (enrollment.isNotEmpty)
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             sliver: SliverToBoxAdapter(
@@ -193,7 +212,7 @@ class AdminDashboard extends ConsumerWidget {
                       height: 160,
                       child: BarChart(BarChartData(
                         alignment: BarChartAlignment.spaceAround,
-                        maxY: (enrollment.map((e) => (e['count'] as num).toDouble()).reduce((a, b) => a > b ? a : b) * 1.3),
+                        maxY: (enrollment.map((e) => (e['count'] as num).toDouble()).reduce((a, b) => a > b ? a : b) * 1.3).clamp(1.0, double.infinity),
                         barTouchData: BarTouchData(enabled: false),
                         titlesData: FlTitlesData(
                           show: true,

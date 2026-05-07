@@ -13,8 +13,19 @@ final marksSetupProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref
   return Map<String, dynamic>.from(res.data as Map);
 });
 
+// Key format: "classId|curriculumId|sessionId|subjectId|componentId|term"
+// Using String (not Map) so Riverpod family equality works correctly.
 final marksEntryProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, Map<String, String>>((ref, params) async {
+    .family<Map<String, dynamic>, String>((ref, key) async {
+  final parts = key.split('|');
+  final params = <String, String>{
+    'class_id':        parts[0],
+    'curriculum_id':   parts[1],
+    'session_year_id': parts[2],
+    'term':            parts[5],
+  };
+  if (parts[3].isNotEmpty) params['subject_id']   = parts[3];
+  if (parts[4].isNotEmpty) params['component_id'] = parts[4];
   final res = await ApiService().get('/marks/entry', params: params);
   return Map<String, dynamic>.from(res.data as Map);
 });
@@ -70,14 +81,9 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
   bool get _readyToEnter =>
       _readyToLoad && _subjectId != null && _componentId != null;
 
-  Map<String, String> get _entryParams => {
-    'class_id': _classId ?? '',
-    'curriculum_id': _curriculumId ?? '',
-    'session_year_id': _sessionYearId ?? '',
-    if (_subjectId != null) 'subject_id': _subjectId!,
-    if (_componentId != null) 'component_id': _componentId!,
-    'term': _term.toString(),
-  };
+  // Stable String key for marksEntryProvider family (Map has no value equality in Dart)
+  String get _entryKey =>
+      '${_classId ?? ''}|${_curriculumId ?? ''}|${_sessionYearId ?? ''}|${_subjectId ?? ''}|${_componentId ?? ''}|$_term';
 
   Future<void> _saveMarks(List<dynamic> students) async {
     if (!_readyToEnter) return;
@@ -263,7 +269,7 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
   }
 
   Widget _buildEntryArea() {
-    final entryAsync = ref.watch(marksEntryProvider(_entryParams));
+    final entryAsync = ref.watch(marksEntryProvider(_entryKey));
 
     return entryAsync.when(
       loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
@@ -273,7 +279,7 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
         const Text('Failed to load entry data', style: TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 16),
         ElevatedButton(
-          onPressed: () => ref.invalidate(marksEntryProvider(_entryParams)),
+          onPressed: () => ref.invalidate(marksEntryProvider(_entryKey)),
           child: const Text('Retry'),
         ),
       ])),

@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
 import 'parent_fees_screen.dart' show parentChildrenProvider;
+import '../shared/report_card_pdf_screen.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -344,6 +345,44 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
                         Text(headComment,
                             style: const TextStyle(fontSize: 12, color: AppColors.textSecondary,
                                 fontStyle: FontStyle.italic)),
+                      ],
+
+                      // ── View Full PDF ──────────────────────────────────
+                      if (r['curriculum_id'] != null && r['session_year_id'] != null) ...[
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              final termInt = int.tryParse(r['term']?.toString() ?? '1') ?? 1;
+                              final firstName = (r['student_name'] ?? '').toString().isNotEmpty
+                                  ? r['student_name'].toString()
+                                  : 'Student';
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => ReportCardPdfScreen(
+                                  studentId:     _selectedChildId!,
+                                  curriculumId:  int.parse(r['curriculum_id'].toString()),
+                                  sessionYearId: int.parse(r['session_year_id'].toString()),
+                                  term:          termInt,
+                                  studentName:   firstName,
+                                  isParent:      true,
+                                ),
+                              ));
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            icon: const Icon(Icons.picture_as_pdf_rounded, size: 17),
+                            label: const Text('View Full Report Card',
+                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                          ),
+                        ),
                       ],
                     ],
                   ]),

@@ -46,15 +46,17 @@ class StatCard extends StatelessWidget {
   final Color color;
   final String? subtitle;
   final int index;
+  final VoidCallback? onTap;
 
   const StatCard({
     super.key, required this.label, required this.value,
     required this.icon, required this.color, this.subtitle, this.index = 0,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
+    final card = GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: MediaQuery.withNoTextScaling(
         child: Column(
@@ -71,7 +73,9 @@ class StatCard extends StatelessWidget {
                   ),
                   child: Icon(icon, color: color, size: 18),
                 ),
-                if (subtitle != null)
+                if (onTap != null)
+                  Icon(Icons.arrow_forward_ios_rounded, size: 11, color: AppColors.textHint)
+                else if (subtitle != null)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
@@ -93,9 +97,25 @@ class StatCard extends StatelessWidget {
           ],
         ),
       ),
-    ).animate(delay: Duration(milliseconds: index * 80))
-      .fadeIn(duration: 400.ms)
-      .slideY(begin: 0.2, end: 0, duration: 400.ms, curve: Curves.easeOut);
+    );
+
+    final animated = card
+        .animate(delay: Duration(milliseconds: index * 80))
+        .fadeIn(duration: 400.ms)
+        .slideY(begin: 0.2, end: 0, duration: 400.ms, curve: Curves.easeOut);
+
+    if (onTap == null) return animated;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        splashColor: color.withOpacity(0.15),
+        highlightColor: color.withOpacity(0.08),
+        child: animated,
+      ),
+    );
   }
 }
 

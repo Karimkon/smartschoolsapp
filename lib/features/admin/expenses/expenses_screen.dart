@@ -62,10 +62,19 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final added = await showModalBottomSheet<bool>(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (_) => const _AddExpenseSheet(),
+          );
+          if (added == true) ref.invalidate(expensesProvider);
+        },
         backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add_rounded, color: Colors.white),
+        icon: const Icon(Icons.add_rounded, color: Colors.white),
+        label: const Text('Add Expense', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
@@ -363,4 +372,231 @@ class _DonutChart extends StatelessWidget {
       ]),
     ).animate(delay: 200.ms).fadeIn();
   }
+}
+
+// ── Add Expense Sheet ─────────────────────────────────────────────────────────
+
+class _AddExpenseSheet extends StatefulWidget {
+  const _AddExpenseSheet();
+  @override State<_AddExpenseSheet> createState() => _AddExpenseSheetState();
+}
+
+class _AddExpenseSheetState extends State<_AddExpenseSheet> {
+  final _formKey   = GlobalKey<FormState>();
+  final _titleCtrl = TextEditingController();
+  final _amountCtrl= TextEditingController();
+  final _descCtrl  = TextEditingController();
+  String  _category = 'Other';
+  String  _method   = 'cash';
+  DateTime _date    = DateTime.now();
+  bool    _saving   = false;
+
+  static const _categories = ['Utilities','Stationery','Maintenance','Food','Transport','Salaries','Other'];
+  static const _methods    = ['cash','bank','mobile_money','cheque'];
+  static const _methodLabels = {'cash':'Cash','bank':'Bank Transfer','mobile_money':'Mobile Money','cheque':'Cheque'};
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose(); _amountCtrl.dispose(); _descCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      await ApiService().post('/expenses', data: {
+        'title':          _titleCtrl.text.trim(),
+        'category':       _category,
+        'amount':         double.parse(_amountCtrl.text.trim()),
+        'date':           '${_date.year}-${_date.month.toString().padLeft(2,'0')}-${_date.day.toString().padLeft(2,'0')}',
+        'payment_method': _method,
+        'description':    _descCtrl.text.trim().isEmpty ? null : _descCtrl.text.trim(),
+      });
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface1,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(20, 8, 20, 20 + bottom),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            // Handle
+            Center(child: Container(width: 40, height: 4, margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(color: AppColors.surface3, borderRadius: BorderRadius.circular(2)))),
+
+            const Text('Add Expense', style: TextStyle(color: AppColors.textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 20),
+
+            // Title
+            _field(label: 'Title', controller: _titleCtrl, hint: 'e.g. Office Supplies',
+              validator: (v) => (v?.trim().isEmpty ?? true) ? 'Required' : null),
+            const SizedBox(height: 14),
+
+            // Amount
+            _field(label: 'Amount (UGX)', controller: _amountCtrl, hint: '0',
+              keyboardType: TextInputType.number,
+              validator: (v) {
+                if (v?.trim().isEmpty ?? true) return 'Required';
+                if (double.tryParse(v!.trim()) == null) return 'Enter a valid number';
+                return null;
+              }),
+            const SizedBox(height: 14),
+
+            // Category + Method row
+            Row(children: [
+              Expanded(child: _dropdownField(
+                label: 'Category', value: _category,
+                items: _categories,
+                onChanged: (v) => setState(() => _category = v!),
+              )),
+              const SizedBox(width: 12),
+              Expanded(child: _dropdownField(
+                label: 'Payment', value: _method,
+                items: _methods,
+                labels: _methodLabels,
+                onChanged: (v) => setState(() => _method = v!),
+              )),
+            ]),
+            const SizedBox(height: 14),
+
+            // Date picker
+            GestureDetector(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: _date,
+                  firstDate: DateTime(2020),
+                  lastDate: DateTime.now(),
+                  builder: (ctx, child) => Theme(
+                    data: Theme.of(ctx).copyWith(
+                      colorScheme: const ColorScheme.dark(primary: AppColors.primary, surface: AppColors.surface2),
+                    ),
+                    child: child!,
+                  ),
+                );
+                if (picked != null) setState(() => _date = picked);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.calendar_today_rounded, size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 10),
+                  Text(
+                    '${_date.day.toString().padLeft(2,'0')}/${_date.month.toString().padLeft(2,'0')}/${_date.year}',
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  ),
+                  const Spacer(),
+                  const Text('Date', style: TextStyle(color: AppColors.textHint, fontSize: 12)),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Description
+            _field(label: 'Description (optional)', controller: _descCtrl,
+              hint: 'Additional notes...', maxLines: 2),
+            const SizedBox(height: 24),
+
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _saving ? null : _save,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _saving
+                    ? const SizedBox(width: 20, height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Save Expense', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _field({
+    required String label,
+    required TextEditingController controller,
+    String? hint,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+    int maxLines = 1,
+  }) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+    const SizedBox(height: 6),
+    TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      validator: validator,
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 13),
+        filled: true,
+        fillColor: AppColors.surface2,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white12)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary)),
+        errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.error)),
+        focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.error)),
+      ),
+    ),
+  ]);
+
+  Widget _dropdownField({
+    required String label,
+    required String value,
+    required List<String> items,
+    Map<String, String>? labels,
+    required ValueChanged<String?> onChanged,
+  }) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12, fontWeight: FontWeight.w600)),
+    const SizedBox(height: 6),
+    DropdownButtonFormField<String>(
+      value: value,
+      decoration: InputDecoration(
+        filled: true, fillColor: AppColors.surface2,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white12)),
+      ),
+      dropdownColor: AppColors.surface2,
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+      isExpanded: true,
+      items: items.map((i) => DropdownMenuItem(value: i, child: Text(labels?[i] ?? i))).toList(),
+      onChanged: onChanged,
+    ),
+  ]);
 }

@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants/api_constants.dart';
@@ -42,4 +43,17 @@ class ApiService {
       _dio.put(path, data: data);
 
   Future<Response> delete(String path) => _dio.delete(path);
+
+  Future<Uint8List> getBytes(String path, {Map<String, dynamic>? params}) async {
+    final res = await _dio.get<List<int>>(
+      path,
+      queryParameters: params,
+      options: Options(
+        responseType: ResponseType.bytes,
+        receiveTimeout: const Duration(seconds: 60),
+        sendTimeout:    const Duration(seconds: 15),
+      ),
+    );
+    return Uint8List.fromList(res.data!);
+  }
 }

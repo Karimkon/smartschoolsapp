@@ -280,15 +280,18 @@ class _InvoicesTab extends ConsumerWidget {
               child: ListView.builder(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
                 itemCount: invoices.length,
-                itemBuilder: (_, i) {
-                  final inv    = invoices[i] as Map;
-                  final status = inv['status']?.toString() ?? 'pending';
-                  final color  = _statusColor(status);
-                  final amount = (inv['total_amount'] as num?)?.toDouble() ?? 0;
-                  final due    = inv['due_date']?.toString() ?? '';
-                  final invNo  = inv['invoice_number']?.toString() ?? '';
+                itemBuilder: (context, i) {
+                  final inv     = Map<String, dynamic>.from(invoices[i] as Map);
+                  final status  = inv['status']?.toString() ?? 'pending';
+                  final color   = _statusColor(status);
+                  final total   = (inv['total_amount'] as num?)?.toDouble() ?? 0;
+                  final paid    = (inv['paid_amount'] as num?)?.toDouble() ?? 0;
+                  final balance = (total - paid).clamp(0.0, double.infinity);
+                  final due     = inv['due_date']?.toString() ?? '';
+                  final invNo   = inv['invoice_number']?.toString() ?? '';
                   final student = inv['student_name']?.toString() ?? '';
-                  final cls    = inv['class_name']?.toString() ?? '';
+                  final cls     = inv['class_name']?.toString() ?? '';
+                  final isPaid  = status.toLowerCase() == 'paid';
 
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -327,13 +330,52 @@ class _InvoicesTab extends ConsumerWidget {
                           ]),
                         ),
                         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                          Text(_fmtUGX(amount),
+                          Text(_fmtUGX(total),
                               style: const TextStyle(
                                   fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 4),
                           StatusBadge(
                               label: status[0].toUpperCase() + status.substring(1),
                               color: color),
+                          if (!isPaid) ...[
+                            const SizedBox(height: 6),
+                            GestureDetector(
+                              onTap: () async {
+                                final ok = await showModalBottomSheet<bool>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (_) => _CollectPaymentSheet(
+                                    invoiceId: inv['id'] as int,
+                                    studentName: student,
+                                    balance: balance,
+                                  ),
+                                );
+                                if (ok == true) {
+                                  ref.invalidate(feesInvoicesProvider);
+                                  ref.invalidate(feesPaymentsProvider);
+                                  ref.invalidate(feesSummaryProvider);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: AppColors.success.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppColors.success.withOpacity(0.4)),
+                                ),
+                                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                                  Icon(Icons.add_rounded, size: 12, color: AppColors.success),
+                                  SizedBox(width: 3),
+                                  Text('Collect',
+                                      style: TextStyle(
+                                          color: AppColors.success,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w700)),
+                                ]),
+                              ),
+                            ),
+                          ],
                         ]),
                       ]),
                     ),
@@ -476,6 +518,228 @@ class _PaymentsTab extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+// ── Collect Payment Sheet ─────────────────────────────────────────────────────
+
+class _CollectPaymentSheet extends StatefulWidget {
+  final int    invoiceId;
+  final String studentName;
+  final double balance;
+
+  const _CollectPaymentSheet({
+    required this.invoiceId,
+    required this.studentName,
+    required this.balance,
+  });
+
+  @override
+  State<_CollectPaymentSheet> createState() => _CollectPaymentSheetState();
+}
+
+class _CollectPaymentSheetState extends State<_CollectPaymentSheet> {
+  final _amountCtrl = TextEditingController();
+  final _notesCtrl  = TextEditingController();
+  String _method    = 'cash';
+  bool   _saving    = false;
+
+  final _methods = ['cash', 'bank', 'mobile_money'];
+
+  @override
+  void initState() {
+    super.initState();
+    _amountCtrl.text = widget.balance > 0
+        ? widget.balance.toStringAsFixed(0)
+        : '';
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _collect() async {
+    final amount = double.tryParse(_amountCtrl.text.trim());
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Enter a valid amount'),
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
+      ));
+      return;
+    }
+    setState(() => _saving = true);
+    try {
+      await ApiService().post('/fees/payments', data: {
+        'fee_invoice_id': widget.invoiceId,
+        'amount':         amount,
+        'payment_method': _method,
+        if (_notesCtrl.text.trim().isNotEmpty) 'notes': _notesCtrl.text.trim(),
+      });
+      if (mounted) {
+        Navigator.pop(context, true);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Payment of ${_fmtUGX(amount)} recorded'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Failed: ${e.toString().replaceAll('DioException', '').trim()}'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ));
+      }
+    }
+  }
+
+  String _methodLabel(String m) {
+    switch (m) {
+      case 'mobile_money': return 'Mobile Money';
+      case 'bank':         return 'Bank Transfer';
+      default:             return 'Cash';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: AppColors.surface1,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                      color: AppColors.textHint, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                      color: AppColors.success.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.payments_rounded, color: AppColors.success, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Collect Payment',
+                        style: TextStyle(
+                            color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w800)),
+                    Text(widget.studentName,
+                        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+                  ]),
+                ),
+              ]),
+              if (widget.balance > 0) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.warning.withOpacity(0.3)),
+                  ),
+                  child: Row(children: [
+                    const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.warning),
+                    const SizedBox(width: 8),
+                    Text('Balance due: ${_fmtUGX(widget.balance)}',
+                        style: const TextStyle(
+                            color: AppColors.warning, fontSize: 13, fontWeight: FontWeight.w600)),
+                  ]),
+                ),
+              ],
+              const SizedBox(height: 20),
+              const Text('Amount (UGX) *',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _amountCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w700),
+                decoration: InputDecoration(
+                  hintText: '0',
+                  hintStyle: const TextStyle(color: AppColors.textHint),
+                  prefixText: 'UGX ',
+                  prefixStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                  filled: true,
+                  fillColor: AppColors.surface2,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Payment Method',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                    color: AppColors.surface2, borderRadius: BorderRadius.circular(14)),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _method,
+                    isExpanded: true,
+                    dropdownColor: AppColors.surface2,
+                    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                    iconEnabledColor: AppColors.textSecondary,
+                    items: _methods.map((m) => DropdownMenuItem(
+                      value: m,
+                      child: Text(_methodLabel(m)),
+                    )).toList(),
+                    onChanged: (v) => setState(() => _method = v!),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Notes (optional)',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 13, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _notesCtrl,
+                maxLines: 2,
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'e.g. Receipt no, remarks...',
+                  hintStyle: const TextStyle(color: AppColors.textHint),
+                  filled: true,
+                  fillColor: AppColors.surface2,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+              ),
+              const SizedBox(height: 28),
+              GradientButton(label: 'Record Payment', loading: _saving, onTap: _collect),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

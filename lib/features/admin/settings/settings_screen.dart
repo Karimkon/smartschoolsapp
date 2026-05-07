@@ -1,43 +1,105 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../../core/services/api_service.dart';
 
-class SettingsScreen extends StatefulWidget {
+// ── Provider ──────────────────────────────────────────────────────────────────
+
+final settingsProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final res = await ApiService().get('/settings');
+  return Map<String, dynamic>.from(res.data as Map);
+});
+
+// ── Screen ────────────────────────────────────────────────────────────────────
+
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
-  @override State<SettingsScreen> createState() => _SettingsScreenState();
+  @override ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  final _schoolNameCtrl = TextEditingController(text: 'SmartSchools Academy');
-  final _emailCtrl     = TextEditingController(text: 'admin@smartschools.ac.ke');
-  final _phoneCtrl     = TextEditingController(text: '+254 700 000000');
-  final _addressCtrl   = TextEditingController(text: '123 School Road, Nairobi, Kenya');
-  final _mottoCtrl     = TextEditingController(text: 'Excellence Through Learning');
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  final _schoolNameCtrl = TextEditingController();
+  final _emailCtrl      = TextEditingController();
+  final _phoneCtrl      = TextEditingController();
+  final _addressCtrl    = TextEditingController();
+  final _mottoCtrl      = TextEditingController();
 
-  bool _allowLateAtt = true;
+  bool _allowLateAtt      = true;
   bool _autoNotifyParents = true;
-  bool _onlinePayments = false;
-  bool _smsEnabled = true;
+  bool _onlinePayments    = false;
+  bool _smsEnabled        = true;
   String _term = 'Term 1';
   String _year = '2026';
-  bool _saving = false;
+  bool _saving  = false;
+  bool _loaded  = false;
 
   @override void dispose() {
     for (final c in [_schoolNameCtrl, _emailCtrl, _phoneCtrl, _addressCtrl, _mottoCtrl]) c.dispose();
     super.dispose();
   }
 
+  void _populate(Map<String, dynamic> d) {
+    if (_loaded) return;
+    _loaded = true;
+    _schoolNameCtrl.text = d['school_name']?.toString() ?? '';
+    _emailCtrl.text      = d['email']?.toString() ?? '';
+    _phoneCtrl.text      = d['phone']?.toString() ?? '';
+    _addressCtrl.text    = d['address']?.toString() ?? '';
+    _mottoCtrl.text      = d['motto']?.toString() ?? '';
+    _allowLateAtt      = d['allow_late_att']      == true;
+    _autoNotifyParents = d['auto_notify_parents'] == true;
+    _onlinePayments    = d['online_payments']     == true;
+    _smsEnabled        = d['sms_enabled']         == true;
+    final t = d['current_term']?.toString() ?? 'Term 1';
+    _term = ['Term 1','Term 2','Term 3'].contains(t) ? t : 'Term 1';
+    _year = d['academic_year']?.toString() ?? '2026';
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() => _saving = false);
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Settings saved successfully!'), backgroundColor: AppColors.success));
+    try {
+      await ApiService().put('/settings', data: {
+        'school_name':         _schoolNameCtrl.text.trim(),
+        'email':               _emailCtrl.text.trim(),
+        'phone':               _phoneCtrl.text.trim(),
+        'address':             _addressCtrl.text.trim(),
+        'motto':               _mottoCtrl.text.trim(),
+        'current_term':        _term,
+        'academic_year':       _year,
+        'allow_late_att':      _allowLateAtt,
+        'auto_notify_parents': _autoNotifyParents,
+        'online_payments':     _onlinePayments,
+        'sms_enabled':         _smsEnabled,
+      });
+      ref.invalidate(settingsProvider);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Settings saved successfully!'),
+        backgroundColor: AppColors.success,
+      ));
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Failed to save: ${e.toString().split(':').last.trim()}'),
+        backgroundColor: AppColors.error,
+      ));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final settingsAsync = ref.watch(settingsProvider);
+
+    // Populate fields once data loads
+    settingsAsync.whenData((d) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _populate(d));
+      });
+    });
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       appBar: AppBar(
@@ -45,103 +107,111 @@ class _SettingsScreenState extends State<SettingsScreen> {
         leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary), onPressed: () => context.pop()),
         title: const Text('School Settings', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
         actions: [
-          TextButton(
-            onPressed: _saving ? null : _save,
-            child: _saving
-              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
-              : const Text('Save', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 15)),
-          ),
+          settingsAsync.isLoading
+              ? const Padding(padding: EdgeInsets.all(16), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
+              : TextButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+                    : const Text('Save', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 15)),
+                ),
         ],
       ),
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.bgGradient),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // School Info section
-            _SectionTitle('School Information'),
-            const SizedBox(height: 12),
-            _Field('School Name', _schoolNameCtrl, Icons.school_rounded),
-            const SizedBox(height: 12),
-            _Field('Email Address', _emailCtrl, Icons.email_rounded, keyboardType: TextInputType.emailAddress),
-            const SizedBox(height: 12),
-            _Field('Phone Number', _phoneCtrl, Icons.phone_rounded, keyboardType: TextInputType.phone),
-            const SizedBox(height: 12),
-            _Field('Address', _addressCtrl, Icons.location_on_rounded, maxLines: 2),
-            const SizedBox(height: 12),
-            _Field('School Motto', _mottoCtrl, Icons.format_quote_rounded),
-            const SizedBox(height: 24),
-
-            // Academic Year
-            _SectionTitle('Academic Settings'),
-            const SizedBox(height: 12),
-            GlassCard(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Current Term', style: TextStyle(fontSize: 12, color: AppColors.textHint, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 8),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(12)),
-                    child: DropdownButtonHideUnderline(child: DropdownButton<String>(
-                      value: _term, dropdownColor: AppColors.surface1, isExpanded: true,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-                      icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
-                      items: ['Term 1','Term 2','Term 3'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                      onChanged: (v) { if (v != null) setState(() => _term = v); },
-                    ))),
-                ])),
-                const SizedBox(width: 12),
-                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  const Text('Academic Year', style: TextStyle(fontSize: 12, color: AppColors.textHint, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 8),
-                  Container(padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(12)),
-                    child: DropdownButtonHideUnderline(child: DropdownButton<String>(
-                      value: _year, dropdownColor: AppColors.surface1, isExpanded: true,
-                      style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
-                      icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
-                      items: ['2024','2025','2026','2027'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                      onChanged: (v) { if (v != null) setState(() => _year = v); },
-                    ))),
-                ])),
-              ]),
-            ])).animate(delay: 200.ms).fadeIn(),
-            const SizedBox(height: 24),
-
-            // Feature toggles
-            _SectionTitle('Features & Notifications'),
-            const SizedBox(height: 12),
-            GlassCard(padding: const EdgeInsets.all(4), child: Column(children: [
-              _Toggle('Allow Late Attendance Mark', 'Teachers can mark after cutoff time', Icons.access_time_rounded, _allowLateAtt, (v) => setState(() => _allowLateAtt = v)),
-              _Divider(),
-              _Toggle('Auto-notify Parents', 'Send SMS when student is absent', Icons.notifications_rounded, _autoNotifyParents, (v) => setState(() => _autoNotifyParents = v)),
-              _Divider(),
-              _Toggle('Online Fee Payments', 'Allow parents to pay fees online', Icons.payment_rounded, _onlinePayments, (v) => setState(() => _onlinePayments = v)),
-              _Divider(),
-              _Toggle('SMS Gateway', 'Send SMS notifications to parents & staff', Icons.sms_rounded, _smsEnabled, (v) => setState(() => _smsEnabled = v)),
-            ])).animate(delay: 300.ms).fadeIn(),
-            const SizedBox(height: 24),
-
-            // Danger zone
-            _SectionTitle('Danger Zone', color: AppColors.error),
-            const SizedBox(height: 12),
-            GlassCard(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                const Icon(Icons.warning_rounded, color: AppColors.error, size: 20),
-                const SizedBox(width: 8),
-                const Expanded(child: Text('Reset academic year data. This cannot be undone.', style: TextStyle(fontSize: 13, color: AppColors.textSecondary))),
-              ]),
+      body: settingsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        error: (e, _) => Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.cloud_off_rounded, color: AppColors.textHint, size: 48),
+          const SizedBox(height: 12),
+          const Text('Could not load settings', style: TextStyle(color: AppColors.textSecondary)),
+          const SizedBox(height: 16),
+          ElevatedButton(onPressed: () => ref.invalidate(settingsProvider), child: const Text('Retry')),
+        ])),
+        data: (_) => Container(
+          decoration: const BoxDecoration(gradient: AppColors.bgGradient),
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _SectionTitle('School Information'),
               const SizedBox(height: 12),
-              SizedBox(width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => _showConfirmDialog(context),
-                  style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error), padding: const EdgeInsets.symmetric(vertical: 12)),
-                  child: const Text('Reset Year Data', style: TextStyle(fontWeight: FontWeight.w600)),
+              _Field('School Name', _schoolNameCtrl, Icons.school_rounded),
+              const SizedBox(height: 12),
+              _Field('Email Address', _emailCtrl, Icons.email_rounded, keyboardType: TextInputType.emailAddress),
+              const SizedBox(height: 12),
+              _Field('Phone Number', _phoneCtrl, Icons.phone_rounded, keyboardType: TextInputType.phone),
+              const SizedBox(height: 12),
+              _Field('Address', _addressCtrl, Icons.location_on_rounded, maxLines: 2),
+              const SizedBox(height: 12),
+              _Field('School Motto', _mottoCtrl, Icons.format_quote_rounded),
+              const SizedBox(height: 24),
+
+              _SectionTitle('Academic Settings'),
+              const SizedBox(height: 12),
+              GlassCard(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Current Term', style: TextStyle(fontSize: 12, color: AppColors.textHint, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(12)),
+                      child: DropdownButtonHideUnderline(child: DropdownButton<String>(
+                        value: _term, dropdownColor: AppColors.surface1, isExpanded: true,
+                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                        icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
+                        items: ['Term 1','Term 2','Term 3'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                        onChanged: (v) { if (v != null) setState(() => _term = v); },
+                      ))),
+                  ])),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Academic Year', style: TextStyle(fontSize: 12, color: AppColors.textHint, fontWeight: FontWeight.w500)),
+                    const SizedBox(height: 8),
+                    Container(padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(12)),
+                      child: DropdownButtonHideUnderline(child: DropdownButton<String>(
+                        value: _year, dropdownColor: AppColors.surface1, isExpanded: true,
+                        style: const TextStyle(color: AppColors.textPrimary, fontSize: 13),
+                        icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
+                        items: ['2024','2025','2026','2027'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                        onChanged: (v) { if (v != null) setState(() => _year = v); },
+                      ))),
+                  ])),
+                ]),
+              ])).animate(delay: 200.ms).fadeIn(),
+              const SizedBox(height: 24),
+
+              _SectionTitle('Features & Notifications'),
+              const SizedBox(height: 12),
+              GlassCard(padding: const EdgeInsets.all(4), child: Column(children: [
+                _Toggle('Allow Late Attendance Mark', 'Teachers can mark after cutoff time', Icons.access_time_rounded, _allowLateAtt, (v) => setState(() => _allowLateAtt = v)),
+                _Divider(),
+                _Toggle('Auto-notify Parents', 'Send SMS when student is absent', Icons.notifications_rounded, _autoNotifyParents, (v) => setState(() => _autoNotifyParents = v)),
+                _Divider(),
+                _Toggle('Online Fee Payments', 'Allow parents to pay fees online', Icons.payment_rounded, _onlinePayments, (v) => setState(() => _onlinePayments = v)),
+                _Divider(),
+                _Toggle('SMS Gateway', 'Send SMS notifications to parents & staff', Icons.sms_rounded, _smsEnabled, (v) => setState(() => _smsEnabled = v)),
+              ])).animate(delay: 300.ms).fadeIn(),
+              const SizedBox(height: 24),
+
+              _SectionTitle('Danger Zone', color: AppColors.error),
+              const SizedBox(height: 12),
+              GlassCard(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  const Icon(Icons.warning_rounded, color: AppColors.error, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text('Reset academic year data. This cannot be undone.', style: TextStyle(fontSize: 13, color: AppColors.textSecondary))),
+                ]),
+                const SizedBox(height: 12),
+                SizedBox(width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _showConfirmDialog(context),
+                    style: OutlinedButton.styleFrom(foregroundColor: AppColors.error, side: const BorderSide(color: AppColors.error), padding: const EdgeInsets.symmetric(vertical: 12)),
+                    child: const Text('Reset Year Data', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
                 ),
-              ),
-            ])).animate(delay: 400.ms).fadeIn(),
-            const SizedBox(height: 40),
-          ],
+              ])).animate(delay: 400.ms).fadeIn(),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );

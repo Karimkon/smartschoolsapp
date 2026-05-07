@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
+import '../shared/report_card_pdf_screen.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -49,7 +50,8 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
           icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
-        title: const Text('My Results', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+        title: const Text('My Results',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
@@ -65,7 +67,7 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
             children: [
               const ShimmerCard(height: 56),
               const SizedBox(height: 16),
-              const ShimmerCard(height: 110),
+              const ShimmerCard(height: 130),
               const SizedBox(height: 16),
               ...List.generate(5, (_) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
@@ -77,7 +79,8 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
             child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
               const Icon(Icons.cloud_off_rounded, color: AppColors.textHint, size: 52),
               const SizedBox(height: 12),
-              const Text('Could not load results', style: TextStyle(color: AppColors.textSecondary)),
+              const Text('Could not load results',
+                  style: TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () => ref.invalidate(studentReportCardsProvider),
@@ -91,10 +94,14 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
                 child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
                   const Icon(Icons.assignment_outlined, color: AppColors.textHint, size: 64),
                   const SizedBox(height: 16),
-                  const Text('No report cards available yet', style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
+                  const Text('No report cards available yet',
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 16)),
                   const SizedBox(height: 8),
-                  const Text('Results will appear here once published by your teacher',
-                      style: TextStyle(color: AppColors.textHint, fontSize: 12), textAlign: TextAlign.center),
+                  const Text(
+                    'Results will appear here once published by your teacher',
+                    style: TextStyle(color: AppColors.textHint, fontSize: 12),
+                    textAlign: TextAlign.center,
+                  ),
                 ]),
               );
             }
@@ -122,18 +129,27 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
                           value: _selectedIdx.clamp(0, cards.length - 1),
                           isExpanded: true,
                           dropdownColor: AppColors.surface1,
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
-                          icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
+                          style: const TextStyle(
+                              color: AppColors.textPrimary, fontSize: 14,
+                              fontWeight: FontWeight.w500),
+                          icon: const Icon(Icons.arrow_drop_down_rounded,
+                              color: AppColors.textSecondary),
                           items: List.generate(cards.length, (i) {
                             final c    = cards[i] as Map;
                             final term = c['term']?.toString() ?? '';
-                            final year = c['session_name']?.toString() ?? c['session_year']?.toString() ?? '';
+                            final year = c['session_name']?.toString()
+                                ?? c['session_year']?.toString() ?? '';
                             return DropdownMenuItem(
                               value: i,
-                              child: Text([if (term.isNotEmpty) 'Term $term', if (year.isNotEmpty) year].join(' — ')),
+                              child: Text([
+                                if (term.isNotEmpty) 'Term $term',
+                                if (year.isNotEmpty) year,
+                              ].join(' — ')),
                             );
                           }),
-                          onChanged: (v) { if (v != null) setState(() => _selectedIdx = v); },
+                          onChanged: (v) {
+                            if (v != null) setState(() => _selectedIdx = v);
+                          },
                         ),
                       ),
                     ).animate().fadeIn(duration: 300.ms),
@@ -163,44 +179,98 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
 
   Widget _buildSummaryCard(Map card) {
     final grade   = card['overall_grade']?.toString() ?? card['grade']?.toString() ?? '—';
-    final avg     = (card['average_score'] as num?)?.toDouble() ?? (card['average'] as num?)?.toDouble() ?? 0;
+    final avg     = (card['average_score'] as num?)?.toDouble()
+        ?? (card['average'] as num?)?.toDouble() ?? 0;
     final rank    = card['rank']?.toString() ?? card['position']?.toString() ?? '—';
     final total   = card['total_students']?.toString() ?? '—';
     final term    = card['term']?.toString() ?? '—';
-    final year    = card['session_name']?.toString() ?? card['session_year']?.toString() ?? '';
+    final year    = card['session_name']?.toString()
+        ?? card['session_year']?.toString() ?? '';
+
+    // Fields needed for PDF
+    final curriculumId  = card['curriculum_id'];
+    final sessionYearId = card['session_year_id'];
+    final hasPdf = curriculumId != null && sessionYearId != null;
 
     return GlassCard(
       gradient: AppColors.primaryGradient,
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Overall Grade', style: TextStyle(fontSize: 12, color: Colors.white70)),
-                const SizedBox(height: 4),
-                Text(grade, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white)),
-                const SizedBox(height: 4),
-                Text('Average: ${avg.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12, color: Colors.white70)),
-                if (year.isNotEmpty)
-                  Text('Term $term — $year', style: const TextStyle(fontSize: 11, color: Colors.white60)),
-              ],
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Overall Grade',
+                        style: TextStyle(fontSize: 12, color: Colors.white70)),
+                    const SizedBox(height: 4),
+                    Text(grade,
+                        style: const TextStyle(
+                            fontSize: 36, fontWeight: FontWeight.w900, color: Colors.white)),
+                    const SizedBox(height: 4),
+                    Text('Average: ${avg.toStringAsFixed(1)}%',
+                        style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                    if (year.isNotEmpty)
+                      Text('Term $term — $year',
+                          style: const TextStyle(fontSize: 11, color: Colors.white60)),
+                  ],
+                ),
+              ),
+              if (rank != '—')
+                Column(children: [
+                  const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 32),
+                  const SizedBox(height: 8),
+                  Text('#$rank',
+                      style: const TextStyle(
+                          fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white)),
+                  Text('of $total',
+                      style: const TextStyle(fontSize: 12, color: Colors.white70)),
+                ]),
+            ],
           ),
-          if (rank != '—')
-            Column(children: [
-              const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 32),
-              const SizedBox(height: 8),
-              Text('#$rank', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white)),
-              Text('of $total', style: const TextStyle(fontSize: 12, color: Colors.white70)),
-            ]),
+          if (hasPdf) ...[
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  final termInt = int.tryParse(card['term']?.toString() ?? '1') ?? 1;
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => ReportCardPdfScreen(
+                      studentId:     -1, // server auto-detects from token for student role
+                      curriculumId:  int.parse(curriculumId.toString()),
+                      sessionYearId: int.parse(sessionYearId.toString()),
+                      term:          termInt,
+                      studentName:   'My Report',
+                    ),
+                  ));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Colors.white.withOpacity(0.4)),
+                  ),
+                ),
+                icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),
+                label: const Text('View Full Report Card',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              ),
+            ),
+          ],
         ],
       ),
     ).animate(delay: 100.ms).fadeIn().slideY(begin: 0.08);
   }
 
   Widget _buildSubjectsSection(Map card) {
-    final rows = (card['subject_rows'] as List?) ?? (card['subjects'] as List?) ?? [];
+    final rows = (card['subject_rows'] as List?)
+        ?? (card['subjects'] as List?)
+        ?? [];
 
     if (rows.isEmpty) {
       return GlassCard(
@@ -209,14 +279,17 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
           child: Column(children: [
             Icon(Icons.assignment_outlined, color: AppColors.textHint, size: 36),
             SizedBox(height: 8),
-            Text('No subject details available', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            Text('No subject details available',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           ]),
         ),
       );
     }
 
-    final colors = [AppColors.primary, AppColors.roleTeacher, AppColors.accent,
-                    AppColors.warning, AppColors.roleAccountant, AppColors.success];
+    final colors = [
+      AppColors.primary, AppColors.roleTeacher, AppColors.accent,
+      AppColors.warning, AppColors.roleAccountant, AppColors.success,
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,7 +306,7 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
           final total   = (row['total'] as num?)?.toDouble() ?? 0;
           final grade   = row['grade']?.toString() ?? '—';
           final remarks = row['remarks']?.toString() ?? '';
-          final color   = colors[i % colors.length];
+          final color      = colors[i % colors.length];
           final gradeColor = _gradeColor(grade);
 
           return Padding(
@@ -242,20 +315,26 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
               padding: const EdgeInsets.all(14),
               child: Row(
                 children: [
-                  Container(width: 4, height: 52,
-                      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4))),
+                  Container(
+                    width: 4, height: 52,
+                    decoration: BoxDecoration(
+                        color: color, borderRadius: BorderRadius.circular(4)),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(subject.toUpperCase(),
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            style: const TextStyle(
+                                fontSize: 13, fontWeight: FontWeight.w700,
+                                color: AppColors.textPrimary)),
                         const SizedBox(height: 3),
                         Row(children: [
                           if (total > 0) ...[
                             Text('${total.toStringAsFixed(0)}%',
-                                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                style: const TextStyle(
+                                    fontSize: 12, color: AppColors.textSecondary)),
                             const SizedBox(width: 8),
                           ],
                           Expanded(
@@ -273,7 +352,9 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
                         if (remarks.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 3),
-                            child: Text(remarks, style: const TextStyle(fontSize: 10, color: AppColors.textHint),
+                            child: Text(remarks,
+                                style: const TextStyle(
+                                    fontSize: 10, color: AppColors.textHint),
                                 maxLines: 1, overflow: TextOverflow.ellipsis),
                           ),
                       ],
@@ -287,13 +368,19 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Center(
-                      child: Text(grade, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: gradeColor)),
+                      child: Text(grade,
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w900,
+                              color: gradeColor)),
                     ),
                   ),
                 ],
               ),
             ),
-          ).animate(delay: Duration(milliseconds: 150 + i * 50)).fadeIn().slideX(begin: 0.05, end: 0);
+          ).animate(
+              delay: Duration(milliseconds: 150 + i * 50))
+              .fadeIn()
+              .slideX(begin: 0.05, end: 0);
         }),
       ],
     );
@@ -315,7 +402,10 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Grade Key', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
+          const Text('Grade Key',
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700,
+                  color: AppColors.textSecondary)),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -328,7 +418,8 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
                 border: Border.all(color: l.$3.withOpacity(0.3)),
               ),
               child: Text('${l.$1}: ${l.$2}',
-                  style: TextStyle(fontSize: 10, color: l.$3, fontWeight: FontWeight.w600)),
+                  style: TextStyle(
+                      fontSize: 10, color: l.$3, fontWeight: FontWeight.w600)),
             )).toList(),
           ),
         ],

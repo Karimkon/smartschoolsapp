@@ -48,6 +48,9 @@ class _ParentFeesScreenState extends ConsumerState<ParentFeesScreen>
     super.dispose();
   }
 
+  static double _n(dynamic v) =>
+      v == null ? 0 : v is num ? v.toDouble() : double.tryParse(v.toString()) ?? 0;
+
   String _fmt(double v) {
     if (v >= 1000000) return '${(v / 1000000).toStringAsFixed(2)}M';
     return v.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
@@ -224,8 +227,8 @@ class _ParentFeesScreenState extends ConsumerState<ParentFeesScreen>
                       itemBuilder: (_, i) {
                         final inv    = invoices[i] as Map;
                         final status = inv['status']?.toString() ?? 'pending';
-                        final total  = (inv['total_amount'] as num?)?.toDouble() ?? 0;
-                        final paidA  = (inv['paid_amount']  as num?)?.toDouble() ?? 0;
+                        final total  = _n(inv['total_amount']);
+                        final paidA  = _n(inv['paid_amount']);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
                           child: GlassCard(
@@ -278,7 +281,7 @@ class _ParentFeesScreenState extends ConsumerState<ParentFeesScreen>
                       itemCount: payments.length,
                       itemBuilder: (_, i) {
                         final p      = payments[i] as Map;
-                        final amount = (p['amount'] as num?)?.toDouble() ?? 0;
+                        final amount = _n(p['amount']);
                         final method = p['payment_method']?.toString() ?? 'Cash';
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
