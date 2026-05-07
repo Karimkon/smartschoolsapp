@@ -1,9 +1,6 @@
 class ApiConstants {
   static const String baseUrl = 'https://smartschoolshub.com/api';
-  // For local development:
-  // static const String baseUrl = 'http://localhost/smartschools/api';
-
-  // Auth
+  // Authentication 
   static const String login  = '/auth/login';
   static const String logout = '/auth/logout';
   static const String me     = '/auth/me';

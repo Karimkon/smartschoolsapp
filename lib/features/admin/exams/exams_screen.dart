@@ -132,7 +132,7 @@ class _ExamsScreenState extends ConsumerState<ExamsScreen> {
                 itemCount: 5,
                 itemBuilder: (_, i) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: ShimmerBox(height: 110, borderRadius: 14),
+                  child: ShimmerCard(height: 110, radius: 14),
                 ),
               ),
               error: (e, _) => Center(

@@ -181,7 +181,7 @@ class _AdminAttendanceScreenState extends ConsumerState<AdminAttendanceScreen> {
                     itemCount: 6,
                     itemBuilder: (_, i) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: ShimmerBox(height: 60, borderRadius: 14),
+                      child: ShimmerCard(height: 60, radius: 14),
                     ),
                   ),
                 ),
@@ -248,6 +248,7 @@ class _AdminAttendanceScreenState extends ConsumerState<AdminAttendanceScreen> {
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               child: Row(children: [
                                 AvatarWidget(
+                                  imageUrl: s['photo_url']?.toString(),
                                   initials: _initials(name),
                                   color: _avatarColors[i % _avatarColors.length],
                                   size: 40,

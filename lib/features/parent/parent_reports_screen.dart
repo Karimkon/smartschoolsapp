@@ -27,14 +27,33 @@ class ParentReportsScreen extends ConsumerStatefulWidget {
 
 class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
   int? _selectedChildId;
-  int? _expandedReport;
+  int? _expandedIndex;
 
   Color _gradeColor(String? grade) {
-    if (grade == null) return AppColors.textHint;
-    if (grade.startsWith('A')) return AppColors.success;
-    if (grade.startsWith('B')) return AppColors.primary;
-    if (grade.startsWith('C')) return AppColors.warning;
+    if (grade == null || grade == '—' || grade == '-') return AppColors.textHint;
+    if (grade.startsWith('A') || grade == 'ممتاز') return AppColors.success;
+    if (grade.startsWith('B') || grade == 'جيد جداً') return AppColors.primary;
+    if (grade.startsWith('C') || grade == 'جيد') return AppColors.roleTeacher;
+    if (grade.startsWith('D') || grade == 'مقبول') return AppColors.warning;
     return AppColors.error;
+  }
+
+  Color _curriculumColor(String type) {
+    switch (type) {
+      case 'arabic':   return AppColors.roleSuperAdmin;
+      case 'a_level':  return AppColors.roleTeacher;
+      case 'cbc':      return AppColors.primary;
+      default:         return AppColors.roleAccountant;
+    }
+  }
+
+  String _curriculumLabel(String type) {
+    switch (type) {
+      case 'arabic':   return 'Theology';
+      case 'a_level':  return 'A-Level';
+      case 'cbc':      return 'CBC';
+      default:         return 'Standard';
+    }
   }
 
   @override
@@ -54,7 +73,8 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
                   icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
                   onPressed: () => context.pop(),
                 ),
-                const Text('Report Cards', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                const Text('Report Cards',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
               ]),
             ),
 
@@ -82,7 +102,7 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: GestureDetector(
-                            onTap: () => setState(() { _selectedChildId = cid; _expandedReport = null; }),
+                            onTap: () => setState(() { _selectedChildId = cid; _expandedIndex = null; }),
                             child: AnimatedContainer(
                               duration: 200.ms,
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -125,7 +145,10 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
         const SizedBox(height: 12),
         const Text('Could not load reports', style: TextStyle(color: AppColors.textSecondary)),
         const SizedBox(height: 16),
-        ElevatedButton(onPressed: () => ref.refresh(parentReportsProvider(childId)), child: const Text('Retry')),
+        ElevatedButton(
+          onPressed: () => ref.refresh(parentReportsProvider(childId)),
+          child: const Text('Retry'),
+        ),
       ])),
       data: (reports) {
         if (reports.isEmpty) {
@@ -144,16 +167,25 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             itemCount: reports.length,
             itemBuilder: (_, i) {
-              final r       = reports[i] as Map;
-              final rid     = r['id'];
-              final expanded = _expandedReport == rid;
-              final avg     = r['average_score'];
-              final grade   = r['overall_grade']?.toString();
-              final term    = r['term']?.toString();
-              final session = r['session_name']?.toString() ?? '';
-              final subjects = (r['subjects'] as List?) ?? [];
-              final rank    = r['rank'];
-              final total   = r['total_students'];
+              final r          = Map<String, dynamic>.from(reports[i] as Map);
+              final expanded   = _expandedIndex == i;
+              final grade      = r['overall_grade']?.toString();
+              final achievement= r['overall_achievement']?.toString() ?? '';
+              final term       = r['term']?.toString();
+              final session    = r['session_name']?.toString() ?? '';
+              final currName   = r['curriculum_name']?.toString() ?? '';
+              final currType   = r['curriculum_type']?.toString() ?? 'standard';
+              final subjects   = (r['subjects'] as List?) ?? [];
+              final rank       = r['rank'];
+              final totalStu   = r['total_students'];
+              final avg        = r['average_score'];
+              final comment    = (r['teacher_comment']?.toString() ?? '').isNotEmpty
+                                    ? r['teacher_comment']
+                                    : r['auto_class_comment'];
+              final commentAr  = r['auto_class_comment_ar']?.toString() ?? '';
+              final headComment= r['head_comment']?.toString() ?? '';
+
+              final currColor = _curriculumColor(currType);
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -161,89 +193,157 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     // Header row
                     GestureDetector(
-                      onTap: () => setState(() => _expandedReport = expanded ? null : rid),
-                      child: Row(children: [
+                      onTap: () => setState(() => _expandedIndex = expanded ? null : i),
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Container(
-                          width: 48, height: 48,
+                          width: 52, height: 52,
                           decoration: BoxDecoration(
                             color: _gradeColor(grade).withOpacity(0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Center(child: Text(grade ?? '-',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: _gradeColor(grade)))),
+                          child: Center(child: Text(
+                            grade ?? '-',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _gradeColor(grade)),
+                          )),
                         ),
                         const SizedBox(width: 12),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Text('Term $term  •  $session',
-                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                          const SizedBox(height: 3),
                           Row(children: [
-                            if (avg != null)
-                              Text('Avg: ${(avg as num).toStringAsFixed(1)}%',
-                                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                            if (rank != null && total != null) ...[
-                              const SizedBox(width: 12),
-                              const Icon(Icons.emoji_events_rounded, size: 12, color: AppColors.warning),
-                              const SizedBox(width: 3),
-                              Text('Rank $rank / $total', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                            ],
+                            Text('Term $term  •  $session',
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: currColor.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(_curriculumLabel(currType),
+                                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: currColor)),
+                            ),
                           ]),
+                          if (currName.isNotEmpty) ...[
+                            const SizedBox(height: 1),
+                            Text(currName, style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                          ],
+                          const SizedBox(height: 4),
+                          Wrap(spacing: 12, children: [
+                            if (avg != null)
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.bar_chart_rounded, size: 11, color: AppColors.textSecondary),
+                                const SizedBox(width: 3),
+                                Text('Avg: ${(avg as num).toStringAsFixed(1)}',
+                                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                              ]),
+                            if (rank != null && totalStu != null)
+                              Row(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.emoji_events_rounded, size: 11, color: AppColors.warning),
+                                const SizedBox(width: 3),
+                                Text('Rank $rank / $totalStu',
+                                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                              ]),
+                          ]),
+                          if (achievement.isNotEmpty)
+                            Text(achievement,
+                                style: TextStyle(fontSize: 11, color: _gradeColor(grade), fontWeight: FontWeight.w600)),
                         ])),
-                        Icon(expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                        Icon(expanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
                             color: AppColors.textHint),
                       ]),
                     ),
 
-                    // Expanded subjects
+                    // Expanded content
                     if (expanded) ...[
                       const Divider(color: Colors.white12, height: 20),
+
+                      // Subject rows
                       if (subjects.isEmpty)
                         const Text('No subject details', style: TextStyle(fontSize: 12, color: AppColors.textHint))
                       else
-                        ...subjects.map((sub) {
-                          final subMap = sub as Map;
-                          final marks  = (subMap['marks_obtained'] as num?)?.toDouble() ?? 0;
-                          final total2 = (subMap['total_marks'] as num?)?.toInt() ?? 100;
-                          final sg     = subMap['grade']?.toString();
+                        ...subjects.asMap().entries.map((entry) {
+                          final sub    = Map<String, dynamic>.from(entry.value as Map);
+                          final sName  = sub['name']?.toString() ?? '';
+                          final sGrade = sub['grade']?.toString() ?? '—';
+                          final sAch   = sub['achievement']?.toString() ?? '';
+                          final sPct   = (sub['percent'] as num?)?.toDouble();
+                          final sWt    = (sub['weighted'] as num?)?.toDouble();
+                          final sTotal = (sub['total'] as num?)?.toDouble();
+
+                          // For display: use percent if available, else weighted or total
+                          double? displayPct = sPct;
+                          if (displayPct == null && sWt != null && currType == 'a_level') {
+                            displayPct = sWt / 5.0 * 100;
+                          } else if (displayPct == null && sTotal != null) {
+                            displayPct = sTotal.clamp(0, 100).toDouble();
+                          }
+
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 10),
                             child: Row(children: [
                               Container(
                                 width: 36, height: 36,
                                 decoration: BoxDecoration(
-                                  color: _gradeColor(sg).withOpacity(0.15),
+                                  color: _gradeColor(sGrade).withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Center(child: Text(sg ?? '-', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: _gradeColor(sg)))),
+                                child: Center(child: Text(sGrade,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: _gradeColor(sGrade)))),
                               ),
                               const SizedBox(width: 10),
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text(subMap['subject']?.toString() ?? '', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                                Text(sName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                                if (sAch.isNotEmpty)
+                                  Text(sAch, style: TextStyle(fontSize: 10, color: _gradeColor(sGrade))),
                                 const SizedBox(height: 4),
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(4),
                                   child: LinearProgressIndicator(
-                                    value: total2 > 0 ? (marks / total2).clamp(0.0, 1.0) : 0,
+                                    value: displayPct != null ? (displayPct / 100).clamp(0.0, 1.0) : 0,
                                     minHeight: 4,
                                     backgroundColor: AppColors.surface3,
-                                    valueColor: AlwaysStoppedAnimation<Color>(_gradeColor(sg)),
+                                    valueColor: AlwaysStoppedAnimation<Color>(_gradeColor(sGrade)),
                                   ),
                                 ),
                               ])),
                               const SizedBox(width: 10),
-                              Text('${marks.toStringAsFixed(0)}/$total2',
-                                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                              Text(
+                                displayPct != null ? '${displayPct.toStringAsFixed(1)}%' : '—',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                              ),
                             ]),
                           );
                         }),
 
-                      // Teacher comment
-                      if (r['class_teacher_comment'] != null && r['class_teacher_comment'].toString().isNotEmpty) ...[
+                      // Comments section
+                      if ((comment?.toString() ?? '').isNotEmpty || commentAr.isNotEmpty) ...[
                         const Divider(color: Colors.white12, height: 16),
-                        Text('Teacher\'s Comment', style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                        const Text('Class Teacher\'s Comment',
+                            style: TextStyle(fontSize: 11, color: AppColors.textHint)),
+                        const SizedBox(height: 6),
+                        if (commentAr.isNotEmpty)
+                          Directionality(
+                            textDirection: TextDirection.rtl,
+                            child: Text(commentAr,
+                                style: const TextStyle(fontSize: 13, color: AppColors.textPrimary,
+                                    fontStyle: FontStyle.italic)),
+                          ),
+                        if ((comment?.toString() ?? '').isNotEmpty)
+                          Text(comment.toString(),
+                              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary,
+                                  fontStyle: FontStyle.italic)),
+                      ],
+
+                      if (headComment.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        const Text('Head Teacher\'s Comment',
+                            style: TextStyle(fontSize: 11, color: AppColors.textHint)),
                         const SizedBox(height: 4),
-                        Text(r['class_teacher_comment'].toString(),
-                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
+                        Text(headComment,
+                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary,
+                                fontStyle: FontStyle.italic)),
                       ],
                     ],
                   ]),

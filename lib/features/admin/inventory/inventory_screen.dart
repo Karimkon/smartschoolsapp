@@ -143,9 +143,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Column(children: [
-                ShimmerBox(height: 44, borderRadius: 14),
+                ShimmerCard(height: 44, radius: 14),
                 const SizedBox(height: 12),
-                ShimmerBox(height: 36, borderRadius: 20),
+                ShimmerCard(height: 36, radius: 20),
               ]),
             ),
             Expanded(
@@ -154,7 +154,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 itemCount: 6,
                 itemBuilder: (_, i) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: ShimmerBox(height: 72, borderRadius: 14),
+                  child: ShimmerCard(height: 72, radius: 14),
                 ),
               ),
             ),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
@@ -316,26 +318,10 @@ class _ParentFeesScreenState extends ConsumerState<ParentFeesScreen>
   void _showPayDialog(BuildContext context, Map inv, double balance) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.surface1,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Pay Fees', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-          const SizedBox(height: 8),
-          Text('Invoice: ${inv['invoice_number']}', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-          Text('Amount Due: UGX ${_fmt(balance)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.warning)),
-          const SizedBox(height: 20),
-          const Text('Payment Options', style: TextStyle(fontSize: 13, color: AppColors.textHint)),
-          const SizedBox(height: 12),
-          _PayOption(Icons.phone_android_rounded, 'Mobile Money (MTN/Airtel)', 'Pay via Mobile Money', AppColors.warning, () => Navigator.pop(context)),
-          const SizedBox(height: 10),
-          _PayOption(Icons.account_balance_rounded, 'Bank Transfer', 'Pay via Bank', AppColors.primary, () => Navigator.pop(context)),
-          const SizedBox(height: 10),
-          _PayOption(Icons.money_rounded, 'Cash at School', 'Pay at the school office', AppColors.success, () => Navigator.pop(context)),
-          const SizedBox(height: 20),
-        ]),
-      ),
+      builder: (_) => _PaymentSheet(inv: inv, balance: balance, fmt: _fmt),
     );
   }
 }
@@ -399,4 +385,182 @@ class _PayOption extends StatelessWidget {
       ]),
     ),
   );
+}
+
+// ── Payment Sheet ─────────────────────────────────────────────────────────────
+
+class _PaymentSheet extends StatefulWidget {
+  final Map inv;
+  final double balance;
+  final String Function(double) fmt;
+  const _PaymentSheet({required this.inv, required this.balance, required this.fmt});
+  @override
+  State<_PaymentSheet> createState() => _PaymentSheetState();
+}
+
+class _PaymentSheetState extends State<_PaymentSheet> {
+  List<dynamic>? _methods;
+  String? _currency;
+  bool _loading = true;
+  bool _initiating = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMethods();
+  }
+
+  Future<void> _loadMethods() async {
+    try {
+      final res = await ApiService().get('/parent/payment/methods');
+      final data = Map<String, dynamic>.from(res.data as Map);
+      setState(() {
+        _methods  = List<dynamic>.from(data['methods'] ?? []);
+        _currency = data['currency']?.toString() ?? 'UGX';
+        _loading  = false;
+      });
+    } catch (_) {
+      setState(() { _loading = false; _error = 'Could not load payment methods'; });
+    }
+  }
+
+  Future<void> _inititateDpo() async {
+    setState(() => _initiating = true);
+    try {
+      final res = await ApiService().post('/parent/payment/initiate', data: {
+        'invoice_id': widget.inv['id'],
+        'amount':     widget.balance,
+      });
+      final data = Map<String, dynamic>.from(res.data as Map);
+      final url  = data['payment_url']?.toString();
+      if (url != null && await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(e.toString().contains('422') ? 'Payment not configured' : 'Failed to initiate payment'),
+          backgroundColor: AppColors.error,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _initiating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24, right: 24, top: 24,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Pay Fees', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+        const SizedBox(height: 6),
+        Text('Invoice: ${widget.inv['invoice_number'] ?? ''}',
+            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+        const SizedBox(height: 4),
+        Row(children: [
+          const Icon(Icons.account_balance_wallet_rounded, size: 16, color: AppColors.warning),
+          const SizedBox(width: 6),
+          Text('${_currency ?? 'UGX'} ${widget.fmt(widget.balance)}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.warning)),
+        ]),
+        const SizedBox(height: 20),
+
+        if (_loading)
+          const Center(child: CircularProgressIndicator(color: AppColors.primary))
+        else if (_error != null)
+          Text(_error!, style: const TextStyle(color: AppColors.error))
+        else if (_methods != null) ...[
+          const Text('Choose Payment Method',
+              style: TextStyle(fontSize: 12, color: AppColors.textHint, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          ...(_methods!).map((m) {
+            final method = Map<String, dynamic>.from(m as Map);
+            final type   = method['type']?.toString() ?? 'none';
+            final avail  = method['available'] == true;
+            final name   = method['name']?.toString() ?? '';
+            final desc   = method['description']?.toString() ?? '';
+            final code   = method['school_code']?.toString();
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: GestureDetector(
+                onTap: !avail ? null : () {
+                  if (type == 'dpo') _inititateDpo();
+                  if (type == 'schoolpay' && code != null) {
+                    Clipboard.setData(ClipboardData(text: code));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                      content: Text('School code copied!'),
+                      behavior: SnackBarBehavior.floating,
+                    ));
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: avail ? AppColors.surface2 : AppColors.surface3,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: avail ? AppColors.roleParent.withOpacity(0.3) : Colors.white12,
+                    ),
+                  ),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Icon(
+                        type == 'dpo'       ? Icons.credit_card_rounded
+                            : type == 'schoolpay' ? Icons.phone_android_rounded
+                            : Icons.info_rounded,
+                        color: avail ? AppColors.roleParent : AppColors.textHint,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(name,
+                          style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w700,
+                            color: avail ? AppColors.textPrimary : AppColors.textHint,
+                          ))),
+                      if (type == 'dpo' && _initiating)
+                        const SizedBox(width: 16, height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.roleParent))
+                      else if (avail)
+                        Icon(Icons.arrow_forward_ios_rounded, color: AppColors.roleParent, size: 14),
+                    ]),
+                    if (desc.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(desc, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                    ],
+                    if (code != null && type == 'schoolpay') ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface1,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppColors.roleParent.withOpacity(0.4)),
+                        ),
+                        child: Row(children: [
+                          Expanded(child: Text('School Code: $code',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.roleParent))),
+                          const Icon(Icons.copy_rounded, size: 14, color: AppColors.textHint),
+                        ]),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(method['instructions']?.toString() ?? '',
+                          style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
+                    ],
+                  ]),
+                ),
+              ),
+            );
+          }),
+        ],
+        const SizedBox(height: 8),
+      ]),
+    );
+  }
 }

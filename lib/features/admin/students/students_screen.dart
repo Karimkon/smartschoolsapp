@@ -12,7 +12,7 @@ class StudentModel {
   final int    id;
   final String firstName, lastName;
   final String admissionNumber, status;
-  final String? className, sectionName, photo, studentType, guardianName, guardianPhone, gender;
+  final String? className, sectionName, photo, photoUrl, studentType, guardianName, guardianPhone, gender;
 
   StudentModel.fromJson(Map<String, dynamic> j)
       : id              = j['id'] as int,
@@ -23,6 +23,7 @@ class StudentModel {
         className       = j['class_name']?.toString(),
         sectionName     = j['section_name']?.toString(),
         photo           = j['photo']?.toString(),
+        photoUrl        = j['photo_url']?.toString(),
         studentType     = j['student_type']?.toString(),
         guardianName    = j['guardian_name']?.toString(),
         guardianPhone   = j['guardian_phone']?.toString(),
@@ -247,6 +248,7 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                                   child: Row(
                                     children: [
                                       AvatarWidget(
+                                          imageUrl: s.photoUrl,
                                           initials: s.initials,
                                           color: _avatarColor(i),
                                           size: 48),

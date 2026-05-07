@@ -192,7 +192,7 @@ class _AnnouncementsScreenState extends ConsumerState<AnnouncementsScreen> {
                     itemCount: 5,
                     itemBuilder: (_, i) => Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      child: ShimmerBox(height: 120, borderRadius: 18),
+                      child: ShimmerCard(height: 120, radius: 18),
                     ),
                   ),
                   error: (e, _) => Center(

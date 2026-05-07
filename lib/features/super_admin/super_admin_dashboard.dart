@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/services/api_service.dart';
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
@@ -57,33 +58,71 @@ class PlatformHealth {
 // ── Provider ──────────────────────────────────────────────────────────────────
 
 final superAdminDashboardProvider = FutureProvider<SuperAdminDashboardData>((ref) async {
-  try {
-    await Future.delayed(const Duration(milliseconds: 600));
-    throw Exception('Using mock data');
-  } catch (_) {
-    return const SuperAdminDashboardData(
-      totalSchools: 247,
-      activeSchools: 231,
-      totalStudents: 184320,
-      totalRevenue: 6840000,
-      schoolsByTier: [
-        TierCount('Starter', 82, AppColors.textSecondary),
-        TierCount('Basic', 65, AppColors.primary),
-        TierCount('Pro', 58, AppColors.roleTeacher),
-        TierCount('Enterprise', 42, AppColors.roleSuperAdmin),
-      ],
-      recentRegistrations: [
-        SchoolRegistration('Greenwood Academy', 'Kenya', 'Active', '21 Apr 2025', AppColors.success),
-        SchoolRegistration('St. Mary High School', 'Uganda', 'Pending', '20 Apr 2025', AppColors.warning),
-        SchoolRegistration('Sunrise International', 'Tanzania', 'Active', '19 Apr 2025', AppColors.success),
-        SchoolRegistration('Atlantic Academy', 'Nigeria', 'Active', '18 Apr 2025', AppColors.success),
-        SchoolRegistration('Valley View School', 'Rwanda', 'Suspended', '17 Apr 2025', AppColors.error),
-        SchoolRegistration('Blue Ridge College', 'Ghana', 'Pending', '16 Apr 2025', AppColors.warning),
-      ],
-      health: PlatformHealth(99.7, 34.2, 2847, 68.4),
+  final res = await ApiService().get('/super-admin/dashboard');
+  final d = Map<String, dynamic>.from(res.data as Map);
+
+  final schools  = Map<String, dynamic>.from(d['schools'] as Map? ?? {});
+  final revenue  = Map<String, dynamic>.from(d['revenue']  as Map? ?? {});
+  final recentList = List<dynamic>.from(d['recent_schools'] ?? []);
+  final planList   = List<dynamic>.from(d['plan_breakdown'] ?? []);
+
+  // Plan tier colors
+  final tierColors = [
+    AppColors.textSecondary,
+    AppColors.primary,
+    AppColors.roleTeacher,
+    AppColors.roleSuperAdmin,
+    AppColors.roleAccountant,
+  ];
+
+  final tiers = planList.isEmpty
+      ? [TierCount('No subs yet', 0, AppColors.textSecondary)]
+      : planList.asMap().entries.map((e) {
+          final p = Map<String, dynamic>.from(e.value as Map);
+          final color = tierColors[e.key % tierColors.length];
+          return TierCount(
+            _capitalize(p['plan']?.toString() ?? 'Unknown'),
+            (p['count'] as num?)?.toInt() ?? 0,
+            color,
+          );
+        }).toList();
+
+  final recent = recentList.map((r) {
+    final m = Map<String, dynamic>.from(r as Map);
+    final status = m['status']?.toString() ?? 'pending';
+    final statusColor = status == 'active'
+        ? AppColors.success
+        : status == 'suspended'
+            ? AppColors.error
+            : AppColors.warning;
+    final createdAt = m['created_at']?.toString() ?? '';
+    String date = createdAt;
+    try {
+      final parsed = DateTime.parse(createdAt);
+      date = DateFormat('d MMM yyyy').format(parsed);
+    } catch (_) {}
+    return SchoolRegistration(
+      m['name']?.toString() ?? 'Unknown',
+      m['country']?.toString() ?? '—',
+      _capitalize(status),
+      date,
+      statusColor,
     );
-  }
+  }).toList();
+
+  return SuperAdminDashboardData(
+    totalSchools:   (schools['total']   as num?)?.toInt() ?? 0,
+    activeSchools:  (schools['active']  as num?)?.toInt() ?? 0,
+    totalStudents:  (d['students']      as num?)?.toInt() ?? 0,
+    totalRevenue:   (revenue['total']   as num?)?.toDouble() ?? 0,
+    schoolsByTier:  tiers,
+    recentRegistrations: recent,
+    health: const PlatformHealth(99.9, 0, 0, 0),
+  );
 });
+
+String _capitalize(String s) =>
+    s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
 
 // ── Dashboard Screen ──────────────────────────────────────────────────────────
 

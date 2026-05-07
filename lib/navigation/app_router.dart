@@ -166,6 +166,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/teacher/timetable',  builder: (_, __) => const TeacherTimetableScreen()),
           GoRoute(path: '/teacher/assignments',builder: (_, __) => const TeacherAssignmentsScreen()),
           GoRoute(path: '/teacher/attendance', builder: (_, __) => const TeacherAttendanceScreen()),
+          GoRoute(path: '/teacher/marks',      builder: (_, __) => const MarksScreen()),
           GoRoute(path: '/teacher/profile',    builder: (_, __) => const ProfileScreen()),
         ],
       ),

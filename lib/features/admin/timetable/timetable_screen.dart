@@ -131,7 +131,7 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
           classesAsync.when(
             loading: () => Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: SizedBox(height: 36, child: ShimmerBox(height: 36, borderRadius: 20)),
+              child: SizedBox(height: 36, child: ShimmerCard(height: 36, radius: 20)),
             ),
             error: (_, __) => const SizedBox.shrink(),
             data: (classes) {
@@ -188,7 +188,7 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
                   itemCount: 4,
                   itemBuilder: (_, i) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
-                    child: ShimmerBox(height: 80, borderRadius: 14),
+                    child: ShimmerCard(height: 80, radius: 14),
                   ),
                 )).toList(),
               ),

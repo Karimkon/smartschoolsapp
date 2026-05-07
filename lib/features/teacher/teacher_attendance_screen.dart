@@ -196,7 +196,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
                     itemCount: 6,
                     itemBuilder: (_, i) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
-                      child: ShimmerBox(height: 60, borderRadius: 14),
+                      child: ShimmerCard(height: 60, radius: 14),
                     ),
                   ),
                 ),

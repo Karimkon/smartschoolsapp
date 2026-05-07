@@ -220,7 +220,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                     itemCount: 4,
                     itemBuilder: (_, i) => Padding(
                       padding: const EdgeInsets.only(bottom: 14),
-                      child: ShimmerBox(height: 100, borderRadius: 18),
+                      child: ShimmerCard(height: 100, radius: 18),
                     ),
                   ),
                   error: (e, _) => Center(

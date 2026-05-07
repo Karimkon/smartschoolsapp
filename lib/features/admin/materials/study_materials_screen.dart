@@ -118,9 +118,9 @@ class _StudyMaterialsScreenState extends ConsumerState<StudyMaterialsScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: Column(children: [
-                ShimmerBox(height: 44, borderRadius: 14),
+                ShimmerCard(height: 44, radius: 14),
                 const SizedBox(height: 12),
-                ShimmerBox(height: 36, borderRadius: 20),
+                ShimmerCard(height: 36, radius: 20),
               ]),
             ),
             Expanded(
@@ -129,7 +129,7 @@ class _StudyMaterialsScreenState extends ConsumerState<StudyMaterialsScreen> {
                 itemCount: 5,
                 itemBuilder: (_, i) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
-                  child: ShimmerBox(height: 85, borderRadius: 14),
+                  child: ShimmerCard(height: 85, radius: 14),
                 ),
               ),
             ),

@@ -119,6 +119,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen>
       final p = name.trim().split(' ').where((x) => x.isNotEmpty).toList();
       return p.length >= 2 ? '${p[0][0]}${p[1][0]}'.toUpperCase() : name.isNotEmpty ? name[0].toUpperCase() : 'S';
     }();
+    final photoUrl = s['photo_url']?.toString();
 
     final fee    = data['fee'] as Map? ?? {};
     final att    = data['attendance'] as Map? ?? {};
@@ -154,7 +155,7 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen>
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
           child: Column(
             children: [
-              AvatarWidget(initials: initials, color: _color, size: 80)
+              AvatarWidget(imageUrl: photoUrl, initials: initials, color: _color, size: 80)
                   .animate().scale(begin: const Offset(0.7, 0.7), end: const Offset(1, 1), duration: 400.ms, curve: Curves.easeOut),
               const SizedBox(height: 14),
               Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary))

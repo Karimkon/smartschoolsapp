@@ -1,109 +1,192 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
+import '../../../core/services/api_service.dart';
 
-class _Branch {
-  final int id;
-  final String name, address, principal, phone, status;
-  final int students, teachers;
-  const _Branch({required this.id, required this.name, required this.address, required this.principal,
-    required this.phone, required this.status, required this.students, required this.teachers});
-}
+// ── Provider ──────────────────────────────────────────────────────────────────
 
-const _mockBranches = [
-  _Branch(id:1, name:'Main Campus',       address:'123 School Road, Nairobi', principal:'Dr. James Mwenda',  phone:'+254 700 100001', status:'Active', students:842, teachers:58),
-  _Branch(id:2, name:'Westlands Branch',  address:'45 Waiyaki Way, Nairobi',  principal:'Ms. Grace Aoko',   phone:'+254 700 100002', status:'Active', students:320, teachers:24),
-  _Branch(id:3, name:'Eastlands Branch',  address:'89 Outer Ring Rd, Nairobi',principal:'Mr. Peter Lule',   phone:'+254 700 100003', status:'Active', students:215, teachers:18),
-  _Branch(id:4, name:'Mombasa Branch',    address:'12 Nyali Rd, Mombasa',     principal:'Mrs. Fatuma Ali',  phone:'+254 700 100004', status:'Inactive',students:0, teachers:0),
-];
+final branchesProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
+  final res = await ApiService().get('/branches');
+  return Map<String, dynamic>.from(res.data as Map);
+});
 
-class BranchesScreen extends StatefulWidget {
+// ── Screen ────────────────────────────────────────────────────────────────────
+
+class BranchesScreen extends ConsumerWidget {
   const BranchesScreen({super.key});
-  @override State<BranchesScreen> createState() => _BranchesScreenState();
-}
 
-class _BranchesScreenState extends State<BranchesScreen> {
+  static const _palette = [
+    AppColors.primary, AppColors.roleTeacher, AppColors.accent, AppColors.textHint,
+  ];
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(branchesProvider);
+
     return Scaffold(
       backgroundColor: AppColors.bgDark,
       appBar: AppBar(
         backgroundColor: AppColors.surface1, elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary), onPressed: () => context.pop()),
-        title: const Text('Branches / Campuses', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
-        actions: [IconButton(icon: const Icon(Icons.add_business_rounded, color: AppColors.primary), onPressed: () {})],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text('Branches / Campuses',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
+            onPressed: () => ref.invalidate(branchesProvider),
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
-        child: ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: _mockBranches.length,
-          itemBuilder: (ctx, i) {
-            final b = _mockBranches[i];
-            final color = [AppColors.primary, AppColors.roleTeacher, AppColors.accent, AppColors.textHint][i % 4];
-            return Padding(padding: const EdgeInsets.only(bottom: 14),
-              child: GlassCard(padding: const EdgeInsets.all(16),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Row(children: [
-                    Container(width: 48, height: 48,
-                      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                      child: Icon(i == 0 ? Icons.account_balance_rounded : Icons.business_rounded, color: color, size: 24),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(b.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                      Text(b.address, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-                    ])),
-                    StatusBadge(label: b.status, color: b.status == 'Active' ? AppColors.success : AppColors.textHint),
-                  ]),
-                  const SizedBox(height: 12),
-                  Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.surface2, borderRadius: BorderRadius.circular(12)),
-                    child: Row(children: [
-                      Expanded(child: _InfoTile(Icons.person_rounded, 'Principal', b.principal, color)),
-                      const SizedBox(width: 12),
-                      Expanded(child: _InfoTile(Icons.phone_rounded, 'Phone', b.phone, AppColors.success)),
-                    ]),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(children: [
-                    Expanded(child: _StatBox('Students', '${b.students}', AppColors.primary)),
-                    const SizedBox(width: 10),
-                    Expanded(child: _StatBox('Teachers', '${b.teachers}', AppColors.roleTeacher)),
-                  ]),
+        child: async.when(
+          loading: () => ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: 3,
+            itemBuilder: (_, __) =>
+                const Padding(padding: EdgeInsets.only(bottom: 14), child: ShimmerCard(height: 160)),
+          ),
+          error: (e, _) => Center(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Icon(Icons.cloud_off_rounded, color: AppColors.textHint, size: 48),
+              const SizedBox(height: 12),
+              const Text('Could not load branches', style: TextStyle(color: AppColors.textSecondary)),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                  onPressed: () => ref.invalidate(branchesProvider),
+                  child: const Text('Retry')),
+            ]),
+          ),
+          data: (data) {
+            final branches = (data['data'] as List?) ?? [];
+            if (branches.isEmpty) {
+              return const Center(
+                child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.business_rounded, color: AppColors.textHint, size: 48),
+                  SizedBox(height: 12),
+                  Text('No branches found', style: TextStyle(color: AppColors.textHint)),
                 ]),
+              );
+            }
+            return RefreshIndicator(
+              color: AppColors.primary,
+              backgroundColor: AppColors.surface1,
+              onRefresh: () => ref.refresh(branchesProvider.future),
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: branches.length,
+                itemBuilder: (ctx, i) {
+                  final b       = branches[i] as Map;
+                  final name    = b['name']?.toString() ?? '';
+                  final address = b['address']?.toString() ?? '';
+                  final phone   = b['phone']?.toString() ?? '';
+                  final status  = b['status']?.toString() ?? 'active';
+                  final isMain  = b['is_main'] == true || b['is_main'] == 1;
+                  final students = (b['student_count'] as num?)?.toInt() ?? 0;
+                  final teachers = (b['teacher_count'] as num?)?.toInt() ?? 0;
+                  final color   = _palette[i % _palette.length];
+                  final isActive = status.toLowerCase() == 'active';
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: GlassCard(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(children: [
+                          Container(
+                            width: 48, height: 48,
+                            decoration: BoxDecoration(
+                                color: color.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(12)),
+                            child: Icon(isMain ? Icons.account_balance_rounded : Icons.business_rounded,
+                                color: color, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Expanded(child: Text(name,
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary))),
+                              if (isMain)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                      color: AppColors.primary.withOpacity(0.15),
+                                      borderRadius: BorderRadius.circular(20)),
+                                  child: const Text('Main', style: TextStyle(color: AppColors.primary,
+                                      fontSize: 10, fontWeight: FontWeight.w700)),
+                                ),
+                            ]),
+                            if (address.isNotEmpty)
+                              Text(address,
+                                  style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                          ])),
+                          StatusBadge(
+                              label: isActive ? 'Active' : 'Inactive',
+                              color: isActive ? AppColors.success : AppColors.textHint),
+                        ]),
+                        const SizedBox(height: 12),
+                        if (phone.isNotEmpty)
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                                color: AppColors.surface2, borderRadius: BorderRadius.circular(10)),
+                            child: Row(children: [
+                              const Icon(Icons.phone_rounded, size: 14, color: AppColors.success),
+                              const SizedBox(width: 8),
+                              Text(phone,
+                                  style: const TextStyle(fontSize: 12, color: AppColors.textPrimary)),
+                            ]),
+                          ),
+                        if (phone.isNotEmpty) const SizedBox(height: 10),
+                        Row(children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10)),
+                              child: Column(children: [
+                                Text('$students',
+                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+                                        color: AppColors.primary)),
+                                const Text('Students',
+                                    style: TextStyle(fontSize: 10, color: AppColors.textHint)),
+                              ]),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                  color: AppColors.roleTeacher.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(10)),
+                              child: Column(children: [
+                                Text('$teachers',
+                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800,
+                                        color: AppColors.roleTeacher)),
+                                const Text('Teachers',
+                                    style: TextStyle(fontSize: 10, color: AppColors.textHint)),
+                              ]),
+                            ),
+                          ),
+                        ]),
+                      ]),
+                    ),
+                  ).animate(delay: Duration(milliseconds: i * 80)).fadeIn().slideY(begin: 0.1, end: 0);
+                },
               ),
-            ).animate(delay: Duration(milliseconds: i * 80)).fadeIn().slideY(begin: 0.1, end: 0);
+            );
           },
         ),
       ),
     );
   }
-}
-
-class _InfoTile extends StatelessWidget {
-  final IconData icon; final String label, value; final Color color;
-  const _InfoTile(this.icon, this.label, this.value, this.color);
-  @override Widget build(BuildContext context) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Icon(icon, size: 14, color: color),
-    const SizedBox(width: 6),
-    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
-      Text(value, style: const TextStyle(fontSize: 12, color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
-    ])),
-  ]);
-}
-
-class _StatBox extends StatelessWidget {
-  final String label, value; final Color color;
-  const _StatBox(this.label, this.value, this.color);
-  @override Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(vertical: 10),
-    decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(10), border: Border.all(color: color.withOpacity(0.2))),
-    child: Column(children: [
-      Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: color)),
-      Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
-    ]),
-  );
 }

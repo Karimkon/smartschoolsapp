@@ -87,11 +87,11 @@ class _AdminTransportScreenState extends ConsumerState<AdminTransportScreen>
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Row(children: [
-                  Expanded(child: ShimmerBox(height: 72, borderRadius: 14)),
+                  Expanded(child: ShimmerCard(height: 72, radius: 14)),
                   const SizedBox(width: 10),
-                  Expanded(child: ShimmerBox(height: 72, borderRadius: 14)),
+                  Expanded(child: ShimmerCard(height: 72, radius: 14)),
                   const SizedBox(width: 10),
-                  Expanded(child: ShimmerBox(height: 72, borderRadius: 14)),
+                  Expanded(child: ShimmerCard(height: 72, radius: 14)),
                 ]),
               ),
               const SizedBox(height: 8),
@@ -101,7 +101,7 @@ class _AdminTransportScreenState extends ConsumerState<AdminTransportScreen>
                   itemCount: 3,
                   itemBuilder: (_, i) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: ShimmerBox(height: 90, borderRadius: 20),
+                    child: ShimmerCard(height: 90, radius: 20),
                   ),
                 ),
               ),

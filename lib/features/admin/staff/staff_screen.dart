@@ -287,7 +287,7 @@ class _StaffScreenState extends ConsumerState<StaffScreen> {
       itemCount: 6,
       itemBuilder: (_, i) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
-        child: ShimmerBox(height: 72, borderRadius: 14),
+        child: ShimmerCard(height: 72, radius: 14),
       ),
     );
   }

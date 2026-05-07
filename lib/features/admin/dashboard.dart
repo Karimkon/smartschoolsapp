@@ -87,7 +87,7 @@ class AdminDashboard extends ConsumerWidget {
                 StatCard(label: 'Pending',   value: '${stats['pending_fmt']}',    icon: Icons.pending_actions_rounded,         color: AppColors.warning,     index: 3),
               ]),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: 128,
+                crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, mainAxisExtent: 140,
               ),
             ),
           ),

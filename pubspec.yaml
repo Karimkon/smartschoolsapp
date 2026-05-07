@@ -1,7 +1,7 @@
 name: smartschools
 description: Smart Schools — All-in-one school management platform
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.0+5
 
 environment:
   sdk: ^3.10.4
@@ -28,6 +28,9 @@ dependencies:
   shimmer: ^3.0.0
   cached_network_image: ^3.3.1
   percent_indicator: ^4.2.3
+
+  # Payment / External links
+  url_launcher: ^6.3.0
 
   # Utils
   intl: ^0.19.0
