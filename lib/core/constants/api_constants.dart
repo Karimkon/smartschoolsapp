@@ -43,4 +43,11 @@ class ApiConstants {
 
   // Schools (super_admin)
   static const String schools = '/schools';
+
+  // Auth extras
+  static const String changePassword = '/auth/change-password';
+
+  // Parent messages
+  static const String parentMessages = '/parent/messages';
+  static const String parentStaff    = '/parent/staff';
 }

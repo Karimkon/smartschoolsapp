@@ -73,6 +73,7 @@ import '../features/parent/parent_fees_screen.dart';
 import '../features/parent/parent_reports_screen.dart';
 import '../features/parent/parent_attendance_screen.dart';
 import '../features/parent/parent_announcements_screen.dart';
+import '../features/parent/parent_messages_screen.dart';
 import '../features/accountant/accountant_dashboard.dart';
 import '../features/accountant/accountant_fees_screen.dart';
 import '../features/librarian/librarian_dashboard.dart';
@@ -193,6 +194,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/parent/reports',       builder: (_, __) => const ParentReportsScreen()),
           GoRoute(path: '/parent/attendance',    builder: (_, __) => const ParentAttendanceScreen()),
           GoRoute(path: '/parent/announcements', builder: (_, __) => const ParentAnnouncementsScreen()),
+          GoRoute(path: '/parent/messages',      builder: (_, __) => const ParentMessagesScreen()),
         ],
       ),
 

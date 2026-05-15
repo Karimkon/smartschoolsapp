@@ -42,11 +42,11 @@ class NavShell extends StatelessWidget {
   ];
 
   static const _parentItems = [
-    _NavItem('Home',       Icons.home_outlined,                   Icons.home_rounded,                    '/parent'),
-    _NavItem('Fees',       Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded,  '/parent/fees'),
-    _NavItem('Reports',    Icons.school_outlined,                 Icons.school_rounded,                  '/parent/reports'),
-    _NavItem('Attendance', Icons.fact_check_outlined,             Icons.fact_check_rounded,              '/parent/attendance'),
-    _NavItem('Profile',    Icons.person_outline,                  Icons.person_rounded,                  '/parent/profile'),
+    _NavItem('Home',     Icons.home_outlined,                   Icons.home_rounded,                    '/parent'),
+    _NavItem('Fees',     Icons.account_balance_wallet_outlined, Icons.account_balance_wallet_rounded,  '/parent/fees'),
+    _NavItem('Reports',  Icons.school_outlined,                 Icons.school_rounded,                  '/parent/reports'),
+    _NavItem('Messages', Icons.chat_bubble_outline_rounded,     Icons.chat_bubble_rounded,             '/parent/messages'),
+    _NavItem('Profile',  Icons.person_outline,                  Icons.person_rounded,                  '/parent/profile'),
   ];
 
   static const _accountantItems = [

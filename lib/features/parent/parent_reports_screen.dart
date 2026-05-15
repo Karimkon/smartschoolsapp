@@ -168,14 +168,56 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
             itemCount: reports.length,
             itemBuilder: (_, i) {
-              final r          = Map<String, dynamic>.from(reports[i] as Map);
+              final r           = Map<String, dynamic>.from(reports[i] as Map);
+              final isPublished = r['is_published'] != false;
+              final term        = r['term']?.toString();
+              final session     = r['session_name']?.toString() ?? '';
+              final currName    = r['curriculum_name']?.toString() ?? '';
+              final currType    = r['curriculum_type']?.toString() ?? 'standard';
+              final currColor   = _curriculumColor(currType);
+
+              // Show a pending card when reports are not yet published
+              if (!isPublished) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GlassCard(
+                    child: Row(children: [
+                      Container(
+                        width: 50, height: 50,
+                        decoration: BoxDecoration(
+                          color: AppColors.textHint.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.lock_clock_rounded, color: AppColors.textHint, size: 24),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Term $term  •  $session',
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                        if (currName.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(currName, style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                        ],
+                        const SizedBox(height: 4),
+                        const Text('Reports not yet released by school',
+                            style: TextStyle(fontSize: 12, color: AppColors.textSecondary, fontStyle: FontStyle.italic)),
+                      ])),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text('Pending', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.warning)),
+                      ),
+                    ]),
+                  ),
+                ).animate(delay: Duration(milliseconds: i * 50)).fadeIn();
+              }
+
               final expanded   = _expandedIndex == i;
               final grade      = r['overall_grade']?.toString();
               final achievement= r['overall_achievement']?.toString() ?? '';
-              final term       = r['term']?.toString();
-              final session    = r['session_name']?.toString() ?? '';
-              final currName   = r['curriculum_name']?.toString() ?? '';
-              final currType   = r['curriculum_type']?.toString() ?? 'standard';
               final subjects   = (r['subjects'] as List?) ?? [];
               final rank       = r['rank'];
               final totalStu   = r['total_students'];
@@ -185,8 +227,6 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
                                     : r['auto_class_comment'];
               final commentAr  = r['auto_class_comment_ar']?.toString() ?? '';
               final headComment= r['head_comment']?.toString() ?? '';
-
-              final currColor = _curriculumColor(currType);
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),

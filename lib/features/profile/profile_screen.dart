@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/services/api_service.dart';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -75,45 +76,81 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _showChangePassword() {
-    final oldCtrl = TextEditingController();
-    final newCtrl = TextEditingController();
+    final oldCtrl  = TextEditingController();
+    final newCtrl  = TextEditingController();
     final confCtrl = TextEditingController();
+    bool saving    = false;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surface1,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Change Password', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-              const SizedBox(height: 16),
-              _PasswordField(ctrl: oldCtrl, label: 'Current Password'),
-              const SizedBox(height: 12),
-              _PasswordField(ctrl: newCtrl, label: 'New Password'),
-              const SizedBox(height: 12),
-              _PasswordField(ctrl: confCtrl, label: 'Confirm New Password'),
-              const SizedBox(height: 20),
-              GradientButton(
-                label: 'Update Password',
-                onTap: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Password updated'), backgroundColor: AppColors.success),
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-            ],
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setS) => Padding(
+          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface1,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Change Password',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                const SizedBox(height: 16),
+                _PasswordField(ctrl: oldCtrl, label: 'Current Password'),
+                const SizedBox(height: 12),
+                _PasswordField(ctrl: newCtrl, label: 'New Password'),
+                const SizedBox(height: 12),
+                _PasswordField(ctrl: confCtrl, label: 'Confirm New Password'),
+                const SizedBox(height: 20),
+                GradientButton(
+                  label: saving ? 'Updating...' : 'Update Password',
+                  onTap: saving ? null : () async {
+                    if (newCtrl.text != confCtrl.text) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Passwords do not match'), backgroundColor: AppColors.error),
+                      );
+                      return;
+                    }
+                    if (newCtrl.text.length < 6) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Password must be at least 6 characters'), backgroundColor: AppColors.error),
+                      );
+                      return;
+                    }
+                    setS(() => saving = true);
+                    try {
+                      await ApiService().put('/auth/change-password', data: {
+                        'current_password':         oldCtrl.text,
+                        'password':                 newCtrl.text,
+                        'password_confirmation':    confCtrl.text,
+                      });
+                      if (mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Password updated successfully'), backgroundColor: AppColors.success),
+                        );
+                      }
+                    } catch (e) {
+                      setS(() => saving = false);
+                      final msg = e.toString().contains('422')
+                          ? 'Current password is incorrect'
+                          : 'Failed to update password';
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(msg), backgroundColor: AppColors.error),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         ),
       ),
