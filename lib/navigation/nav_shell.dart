@@ -66,6 +66,13 @@ class NavShell extends StatelessWidget {
     _NavItem('Profile', Icons.person_outline,    Icons.person_rounded,   '/super-admin/profile'),
   ];
 
+  static const _dosItems = [
+    _NavItem('Dashboard',  Icons.dashboard_outlined,  Icons.dashboard_rounded,  '/dos'),
+    _NavItem('Attendance', Icons.fact_check_outlined, Icons.fact_check_rounded, '/dos/attendance'),
+    _NavItem('Students',   Icons.school_outlined,     Icons.school_rounded,     '/dos/students'),
+    _NavItem('Profile',    Icons.person_outline,      Icons.person_rounded,     '/dos/profile'),
+  ];
+
   List<_NavItem> get _items {
     switch (role) {
       case 'teacher':     return _teacherItems;
@@ -74,6 +81,7 @@ class NavShell extends StatelessWidget {
       case 'accountant':  return _accountantItems;
       case 'librarian':   return _librarianItems;
       case 'super_admin': return _superAdminItems;
+      case 'dos':         return _dosItems;
       default:            return _adminItems;
     }
   }
@@ -86,6 +94,7 @@ class NavShell extends StatelessWidget {
       case 'accountant':  return AppColors.roleAccountant;
       case 'librarian':   return AppColors.roleLibrarian;
       case 'super_admin': return AppColors.roleSuperAdmin;
+      case 'dos':         return const Color(0xFF6D28D9);
       default:            return AppColors.roleAdmin;
     }
   }

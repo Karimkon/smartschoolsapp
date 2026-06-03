@@ -179,7 +179,8 @@ class TeacherDashboard extends ConsumerWidget {
 
   Widget _buildQuickActions(BuildContext context) {
     final actions = [
-      _QuickAction('Mark\nAttendance', Icons.how_to_reg_rounded, AppColors.success, '/teacher/attendance'),
+      _QuickAction('Daily\nAttendance', Icons.how_to_reg_rounded, AppColors.success, '/teacher/attendance'),
+      _QuickAction('Lesson\nAttendance', Icons.menu_book_rounded, AppColors.roleTeacher, '/teacher/lesson-attendance'),
       _QuickAction('Enter\nMarks', Icons.edit_note_rounded, AppColors.roleAccountant, '/teacher/marks'),
       _QuickAction('Timetable', Icons.calendar_month_rounded, AppColors.primary, '/teacher/timetable'),
     ];

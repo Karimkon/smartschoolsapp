@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/providers/auth_provider.dart';
 
@@ -31,12 +30,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       return;
     }
 
-    // Check whether onboarding has been shown before
-    final prefs = await SharedPreferences.getInstance();
-    final seen  = prefs.getBool('onboarding_seen') ?? false;
     if (!mounted) return;
-
-    context.go(seen ? '/login' : '/onboarding');
+    context.go('/landing');
   }
 
   String _homeForRole(String role) {
@@ -86,13 +81,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 children: [
                   // Logo
                   Container(
-                    width: 100, height: 100,
+                    width: 110, height: 110,
                     decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
                       borderRadius: BorderRadius.circular(28),
-                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.45), blurRadius: 30, offset: const Offset(0, 12))],
+                      boxShadow: [BoxShadow(color: AppColors.primary.withOpacity(0.5), blurRadius: 36, offset: const Offset(0, 14))],
                     ),
-                    child: const Icon(Icons.school_rounded, color: Colors.white, size: 52),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(28),
+                      child: Image.asset('assets/images/app_icon.png', fit: BoxFit.cover),
+                    ),
                   )
                   .animate()
                   .scale(begin: const Offset(0.3, 0.3), end: const Offset(1, 1), duration: 700.ms, curve: Curves.elasticOut)

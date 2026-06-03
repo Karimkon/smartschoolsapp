@@ -139,7 +139,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             right: 20,
             child: TextButton(
               onPressed: _finish,
-              child: Text('Skip',
+              child: Text('Login',
                 style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 14),
               ),
             ).animate().fadeIn(delay: 500.ms),

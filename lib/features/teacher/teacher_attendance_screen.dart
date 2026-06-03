@@ -218,7 +218,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
                 for (final s in students) {
                   final sid = s['id'].toString();
                   if (!_attendance.containsKey(sid)) {
-                    final existing = s['attendance_status']?.toString();
+                    final existing = s['status']?.toString();
                     if (existing != null) {
                       _attendance[sid] = existing == 'present'
                           ? _AttStatus.present
@@ -243,8 +243,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
                         itemBuilder: (ctx, i) {
                           final s = students[i];
                           final sid = s['id'].toString();
-                          final name =
-                              '${s['first_name'] ?? ''} ${s['last_name'] ?? ''}'.trim();
+                          final name = s['name']?.toString() ?? '';
                           final status = _attendance[sid] ?? _AttStatus.none;
 
                           return Padding(

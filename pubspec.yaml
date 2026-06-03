@@ -1,7 +1,7 @@
 name: smartschools
 description: Smart Schools — All-in-one school management platform
 publish_to: 'none'
-version: 1.0.0+10
+version: 1.0.0+12
 
 environment:
   sdk: ^3.10.4
@@ -51,7 +51,7 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/app_icon.png"
   min_sdk_android: 21
-  adaptive_icon_background: "#0F172A"
+  adaptive_icon_background: "#2FA876"
   adaptive_icon_foreground: "assets/images/app_icon.png"
 
 flutter:

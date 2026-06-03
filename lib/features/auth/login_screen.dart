@@ -55,6 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       case 'parent':       return '/parent';
       case 'accountant':   return '/accountant';
       case 'librarian':    return '/librarian';
+      case 'dos':          return '/dos';
       default:             return '/login';
     }
   }
@@ -69,53 +70,69 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
         child: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 28),
             child: Form(
               key: _formKey,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(height: size.height * 0.07),
+                  SizedBox(height: size.height * 0.09),
 
-                  // Logo + brand
-                  Row(
-                    children: [
-                      Container(
-                        width: 48, height: 48,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.4),
-                            blurRadius: 16, offset: const Offset(0, 6),
-                          )],
-                        ),
-                        child: const Icon(Icons.school_rounded, color: Colors.white, size: 26),
-                      ),
-                      const SizedBox(width: 14),
-                      ShaderMask(
-                        shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
-                        child: const Text('Smart Schools',
-                          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ).animate().fadeIn(duration: 400.ms).slideX(begin: -0.2, end: 0),
+                  // ── Logo ─────────────────────────────────────────────────────
+                  Container(
+                    width: 90, height: 90,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(color: AppColors.primary.withOpacity(0.45), blurRadius: 32, offset: const Offset(0, 12)),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(22),
+                      child: Image.asset('assets/images/app_icon.png', fit: BoxFit.cover),
+                    ),
+                  )
+                  .animate().scale(begin: const Offset(0.5, 0.5), end: const Offset(1, 1), duration: 600.ms, curve: Curves.elasticOut)
+                  .fadeIn(duration: 400.ms),
 
-                  SizedBox(height: size.height * 0.07),
+                  const SizedBox(height: 14),
 
-                  const Text('Welcome back',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
-                  ).animate(delay: 100.ms).fadeIn().slideY(begin: 0.2, end: 0),
+                  // ── Brand name ───────────────────────────────────────────────
+                  ShaderMask(
+                    shaderCallback: (b) => AppColors.primaryGradient.createShader(b),
+                    child: const Text('Smart Schools Hub',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.3),
+                    ),
+                  )
+                  .animate(delay: 150.ms).fadeIn(duration: 400.ms),
 
                   const SizedBox(height: 6),
-                  const Text('Sign in to continue',
-                    style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
-                  ).animate(delay: 150.ms).fadeIn(),
+                  Text('All-in-one School Management',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary.withOpacity(0.7), letterSpacing: 0.2),
+                  )
+                  .animate(delay: 200.ms).fadeIn(duration: 400.ms),
 
-                  SizedBox(height: size.height * 0.06),
+                  SizedBox(height: size.height * 0.07),
 
-                  // Form card
+                  // ── Welcome text ─────────────────────────────────────────────
+                  const Text('Welcome Back',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: AppColors.textPrimary, height: 1.1),
+                  )
+                  .animate(delay: 250.ms).fadeIn().slideY(begin: 0.2, end: 0),
+
+                  const SizedBox(height: 8),
+                  const Text('Sign in to your school account',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  )
+                  .animate(delay: 300.ms).fadeIn(),
+
+                  SizedBox(height: size.height * 0.05),
+
+                  // ── Form card ────────────────────────────────────────────────
                   GlassCard(
                     padding: const EdgeInsets.all(22),
                     child: Column(
@@ -123,8 +140,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       children: [
                         // Email
                         const Text('Email',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary)),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _emailCtrl,
@@ -135,16 +151,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             hintText: 'Enter your email',
                             prefixIcon: Icon(Icons.email_outlined, size: 20, color: AppColors.textHint),
                           ),
-                          validator: (v) =>
-                              (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+                          validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
                         ),
 
                         const SizedBox(height: 18),
 
                         // Password
                         const Text('Password',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600,
-                              color: AppColors.textSecondary)),
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _passwordCtrl,
@@ -152,61 +166,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
                           decoration: InputDecoration(
                             hintText: 'Enter your password',
-                            prefixIcon: const Icon(Icons.lock_outline, size: 20,
-                                color: AppColors.textHint),
+                            prefixIcon: const Icon(Icons.lock_outline, size: 20, color: AppColors.textHint),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscure
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
+                                _obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                                 color: AppColors.textHint, size: 20,
                               ),
                               onPressed: () => setState(() => _obscure = !_obscure),
                             ),
                           ),
-                          validator: (v) =>
-                              (v == null || v.length < 4) ? 'Enter your password' : null,
+                          validator: (v) => (v == null || v.length < 4) ? 'Enter your password' : null,
                           onFieldSubmitted: (_) => _login(),
                         ),
 
-                        // Error message
+                        // Error
                         if (auth.error != null) ...[
                           const SizedBox(height: 14),
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.1),
+                              color: AppColors.error.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                  color: AppColors.error.withValues(alpha: 0.3)),
+                              border: Border.all(color: AppColors.error.withOpacity(0.3)),
                             ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error_outline,
-                                    color: AppColors.error, size: 18),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(auth.error!,
-                                    style: const TextStyle(
-                                        color: AppColors.error, fontSize: 13)),
-                                ),
-                              ],
-                            ),
+                            child: Row(children: [
+                              const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(auth.error!, style: const TextStyle(color: AppColors.error, fontSize: 13))),
+                            ]),
                           ).animate().fadeIn().shakeX(),
                         ],
                       ],
                     ),
-                  ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.2, end: 0),
+                  ).animate(delay: 350.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 22),
 
                   GradientButton(
                     label: 'Sign In',
                     loading: auth.loading,
                     onTap: _login,
-                  ).animate(delay: 300.ms).fadeIn().slideY(begin: 0.2, end: 0),
+                  ).animate(delay: 420.ms).fadeIn().slideY(begin: 0.2, end: 0),
 
-                  const SizedBox(height: 40),
+                  SizedBox(height: size.height * 0.05),
+
+                  // Powered by
+                  Text('Powered by Smart Schools Hub',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: AppColors.textHint.withOpacity(0.6)),
+                  ).animate(delay: 500.ms).fadeIn(),
+
+                  const SizedBox(height: 24),
                 ],
               ),
             ),

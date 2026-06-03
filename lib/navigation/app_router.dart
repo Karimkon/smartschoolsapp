@@ -60,6 +60,7 @@ import '../features/teacher/teacher_dashboard.dart';
 import '../features/teacher/teacher_timetable_screen.dart';
 import '../features/teacher/teacher_assignments_screen.dart';
 import '../features/teacher/teacher_attendance_screen.dart';
+import '../features/teacher/lesson_attendance_screen.dart';
 
 // ── Student ────────────────────────────────────────────────────────────────────
 import '../features/student/student_dashboard.dart';
@@ -79,8 +80,9 @@ import '../features/accountant/accountant_fees_screen.dart';
 import '../features/librarian/librarian_dashboard.dart';
 import '../features/librarian/books_screen.dart';
 import '../features/super_admin/super_admin_dashboard.dart';
+import '../features/dos/dos_dashboard.dart';
 import '../features/profile/profile_screen.dart';
-import '../features/onboarding/onboarding_screen.dart';
+import '../features/landing/landing_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
@@ -90,17 +92,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = authState.isLoggedIn;
       final loc          = state.matchedLocation;
       final onSplash     = loc == '/splash';
-      final onOnboarding = loc == '/onboarding';
-      final onLogin      = loc == '/login';
+      final onLanding = loc == '/landing';
+      final onLogin   = loc == '/login';
 
-      if (onSplash || onOnboarding) return null;
+      if (onSplash || onLanding) return null;
       if (!isLoggedIn && !onLogin) return '/login';
       if (isLoggedIn && onLogin) return _homeForRole(authState.user!.role);
       return null;
     },
     routes: [
       GoRoute(path: '/splash',      builder: (_, __) => const SplashScreen()),
-      GoRoute(path: '/onboarding',  builder: (_, __) => const OnboardingScreen()),
+      GoRoute(path: '/landing',     builder: (_, __) => const LandingScreen()),
       GoRoute(path: '/login',       builder: (_, __) => const LoginScreen()),
 
       // ── Admin shell ──────────────────────────────────────────────────────────
@@ -166,8 +168,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/teacher',            builder: (_, __) => const TeacherDashboard()),
           GoRoute(path: '/teacher/timetable',  builder: (_, __) => const TeacherTimetableScreen()),
           GoRoute(path: '/teacher/assignments',builder: (_, __) => const TeacherAssignmentsScreen()),
-          GoRoute(path: '/teacher/attendance', builder: (_, __) => const TeacherAttendanceScreen()),
-          GoRoute(path: '/teacher/marks',      builder: (_, __) => const MarksScreen()),
+          GoRoute(path: '/teacher/attendance',         builder: (_, __) => const TeacherAttendanceScreen()),
+          GoRoute(path: '/teacher/lesson-attendance', builder: (_, __) => const LessonAttendanceScreen()),
+          GoRoute(path: '/teacher/marks',             builder: (_, __) => const MarksScreen()),
           GoRoute(path: '/teacher/profile',    builder: (_, __) => const ProfileScreen()),
         ],
       ),
@@ -226,6 +229,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/super-admin/profile', builder: (_, __) => const ProfileScreen()),
         ],
       ),
+
+      // ── DOS (Dean of Studies) shell ──────────────────────────────────────────
+      ShellRoute(
+        builder: (ctx, state, child) => NavShell(child: child, role: 'dos'),
+        routes: [
+          GoRoute(path: '/dos',                   builder: (_, __) => const DosDashboard()),
+          GoRoute(path: '/dos/profile',           builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/dos/attendance',        builder: (_, __) => const AdminAttendanceScreen()),
+          GoRoute(path: '/dos/students',          builder: (_, __) => const StudentsScreen()),
+          GoRoute(path: '/dos/report-cards',      builder: (_, __) => const ReportCardsScreen()),
+        ],
+      ),
     ],
   );
   ref.listen<AuthState>(authProvider, (_, __) => router.refresh());
@@ -241,6 +256,7 @@ String _homeForRole(String role) {
     case 'parent':       return '/parent';
     case 'accountant':   return '/accountant';
     case 'librarian':    return '/librarian';
+    case 'dos':          return '/dos';
     default:             return '/login';
   }
 }
