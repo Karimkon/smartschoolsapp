@@ -8,7 +8,6 @@ import '../../../core/services/api_service.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
-// Re-use classes list if already declared; keep local if not
 final _timetableClassesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) async {
   final res = await ApiService().get('/classes-list');
   final data = res.data;
@@ -16,16 +15,21 @@ final _timetableClassesProvider = FutureProvider.autoDispose<List<dynamic>>((ref
   return List<dynamic>.from(data ?? []);
 });
 
+// Family key: "classId|timetableType" e.g. "5|theology" or "|secular"
 final timetableProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, String>((ref, classId) async {
-  final params = classId.isNotEmpty ? {'class_id': classId} : <String, dynamic>{};
+    .family<Map<String, dynamic>, String>((ref, key) async {
+  final parts    = key.split('|');
+  final classId  = parts[0];
+  final ttType   = parts.length > 1 ? parts[1] : 'secular';
+  final params   = <String, dynamic>{'timetable_type': ttType};
+  if (classId.isNotEmpty) params['class_id'] = classId;
   final res = await ApiService().get('/timetable', params: params);
   return Map<String, dynamic>.from(res.data as Map);
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const _days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const _subjectColors = {
   'mathematics': AppColors.primary,
@@ -38,6 +42,11 @@ const _subjectColors = {
   'chemistry':   Color(0xFFFF6B35),
   'physics':     Color(0xFF7C3AED),
   'biology':     Color(0xFF10B981),
+  'cre':         Color(0xFF8B5CF6),
+  'ire':         Color(0xFF8B5CF6),
+  'islamic':     Color(0xFF7C3AED),
+  'quran':       Color(0xFF6D28D9),
+  'arabic':      Color(0xFF5B21B6),
 };
 
 Color _subjectColor(String subject) {
@@ -61,6 +70,23 @@ List<dynamic> _slotsForDay(List<dynamic> slots, String day) {
   return filtered;
 }
 
+/// Extract teacher display string from a slot — supports single or multiple teachers
+String _teacherDisplay(Map slot) {
+  // Try multi-teacher array first
+  final teachersArr = slot['teachers'] as List?;
+  if (teachersArr != null && teachersArr.isNotEmpty) {
+    final names = teachersArr.map((t) {
+      if (t is Map) {
+        return ('${t['first_name'] ?? ''} ${t['last_name'] ?? ''}').trim();
+      }
+      return t.toString();
+    }).where((n) => n.isNotEmpty).toList();
+    if (names.isNotEmpty) return names.join(', ');
+  }
+  // Fallback to single teacher fields
+  return (slot['teacher'] ?? slot['teacher_name'] ?? '').toString();
+}
+
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 class AdminTimetableScreen extends ConsumerStatefulWidget {
@@ -73,8 +99,9 @@ class AdminTimetableScreen extends ConsumerStatefulWidget {
 class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabs;
-  String _selectedClassId = '';
+  String _selectedClassId   = '';
   String _selectedClassName = 'All';
+  String _timetableType     = 'secular'; // secular | theology
 
   @override
   void initState() {
@@ -90,13 +117,15 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
 
   int _todayIndex() {
     final d = DateTime.now().weekday;
-    return d <= 5 ? d - 1 : 0;
+    return d <= 6 ? d - 1 : 0;
   }
+
+  String get _providerKey => '$_selectedClassId|$_timetableType';
 
   @override
   Widget build(BuildContext context) {
-    final classesAsync = ref.watch(_timetableClassesProvider);
-    final timetableAsync = ref.watch(timetableProvider(_selectedClassId));
+    final classesAsync   = ref.watch(_timetableClassesProvider);
+    final timetableAsync = ref.watch(timetableProvider(_providerKey));
 
     return Scaffold(
       backgroundColor: AppColors.bgDark,
@@ -110,9 +139,26 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
         title: const Text('Timetable',
             style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add_rounded, color: AppColors.primary),
-            onPressed: () {},
+          // Timetable type toggle
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              _TypeToggleBtn(
+                label: 'Secular',
+                icon: Icons.school_rounded,
+                color: AppColors.primary,
+                selected: _timetableType == 'secular',
+                onTap: () => setState(() => _timetableType = 'secular'),
+              ),
+              const SizedBox(width: 6),
+              _TypeToggleBtn(
+                label: 'Theology',
+                icon: Icons.mosque_rounded,
+                color: const Color(0xFF7C3AED),
+                selected: _timetableType == 'theology',
+                onTap: () => setState(() => _timetableType = 'theology'),
+              ),
+            ]),
           ),
         ],
         bottom: TabBar(
@@ -121,13 +167,14 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.textHint,
           labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          isScrollable: true,
           tabs: _days.map((d) => Tab(text: d)).toList(),
         ),
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: AppColors.bgGradient),
         child: Column(children: [
-          // Class filter chips
+          // ── Class filter chips ────────────────────────────────────────────
           classesAsync.when(
             loading: () => Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -137,7 +184,8 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
             data: (classes) {
               final items = [
                 {'id': '', 'name': 'All'},
-                ...classes.map((c) => {'id': c['id'].toString(), 'name': c['name']?.toString() ?? ''})
+                ...classes.map((c) =>
+                    {'id': c['id'].toString(), 'name': c['name']?.toString() ?? ''}),
               ];
               return Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -151,7 +199,7 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
                         padding: const EdgeInsets.only(right: 8),
                         child: GestureDetector(
                           onTap: () => setState(() {
-                            _selectedClassId = c['id']!;
+                            _selectedClassId   = c['id']!;
                             _selectedClassName = c['name']!;
                           }),
                           child: AnimatedContainer(
@@ -179,6 +227,36 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
             },
           ),
 
+          // ── Timetable type indicator ──────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Row(children: [
+              Container(
+                width: 6, height: 6,
+                decoration: BoxDecoration(
+                  color: _timetableType == 'theology'
+                      ? const Color(0xFF7C3AED)
+                      : AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _timetableType == 'theology'
+                    ? 'Showing Theology Timetable'
+                    : 'Showing Secular Timetable',
+                style: TextStyle(
+                  color: _timetableType == 'theology'
+                      ? const Color(0xFF7C3AED)
+                      : AppColors.textHint,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ]),
+          ),
+
+          // ── Timetable body ────────────────────────────────────────────────
           Expanded(
             child: timetableAsync.when(
               loading: () => TabBarView(
@@ -232,14 +310,18 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
                         itemCount: slots.length,
                         itemBuilder: (ctx, i) {
-                          final s = slots[i];
-                          final subject = s['subject'] ?? s['subject_name'] ?? 'Subject';
-                          final teacher = s['teacher'] ?? s['teacher_name'] ?? '';
-                          final classGroup = s['class'] ?? s['class_name'] ?? _selectedClassName;
-                          final startTime = s['start_time'] ?? '';
-                          final endTime = s['end_time'] ?? '';
-                          final room = s['room'] ?? s['venue'] ?? '';
-                          final color = _subjectColor(subject.toString());
+                          final s          = Map<String, dynamic>.from(slots[i] as Map);
+                          final subject    = (s['subject'] ?? s['subject_name'] ?? 'Subject').toString();
+                          final teacherStr = _teacherDisplay(s);
+                          final classGroup = (s['class'] ?? s['class_name'] ?? _selectedClassName).toString();
+                          final startTime  = (s['start_time'] ?? '').toString();
+                          final endTime    = (s['end_time'] ?? '').toString();
+                          final room       = (s['room'] ?? s['venue'] ?? '').toString();
+                          final color      = _subjectColor(subject);
+
+                          // Multi-teacher count
+                          final teachersArr   = s['teachers'] as List?;
+                          final multiTeacher  = teachersArr != null && teachersArr.length > 1;
 
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 10),
@@ -259,37 +341,51 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
                                   ),
                                   Expanded(
                                     child: Padding(
-                                      padding: const EdgeInsets.all(14),
+                                      padding: const EdgeInsets.all(13),
                                       child: Row(children: [
                                         Expanded(
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(subject.toString(),
+                                              Text(subject,
                                                   style: TextStyle(
-                                                      fontSize: 14,
+                                                      fontSize: 13.5,
                                                       fontWeight: FontWeight.w700,
                                                       color: color)),
                                               const SizedBox(height: 3),
-                                              Text(teacher.toString(),
-                                                  style: const TextStyle(
-                                                      fontSize: 12,
-                                                      color: AppColors.textPrimary)),
-                                              const SizedBox(height: 3),
+                                              if (teacherStr.isNotEmpty)
+                                                Row(children: [
+                                                  if (multiTeacher) ...[
+                                                    const Icon(Icons.group_rounded,
+                                                        size: 11, color: AppColors.textHint),
+                                                    const SizedBox(width: 3),
+                                                  ],
+                                                  Expanded(
+                                                    child: Text(
+                                                      teacherStr,
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                          fontSize: 11.5,
+                                                          color: AppColors.textPrimary),
+                                                    ),
+                                                  ),
+                                                ]),
+                                              const SizedBox(height: 4),
                                               Row(children: [
                                                 const Icon(Icons.class_rounded,
                                                     size: 11, color: AppColors.textHint),
-                                                const SizedBox(width: 4),
-                                                Text(classGroup.toString(),
+                                                const SizedBox(width: 3),
+                                                Text(classGroup,
                                                     style: const TextStyle(
                                                         fontSize: 11,
                                                         color: AppColors.textSecondary)),
-                                                if (room.toString().isNotEmpty) ...[
+                                                if (room.isNotEmpty) ...[
                                                   const SizedBox(width: 8),
                                                   const Icon(Icons.room_rounded,
                                                       size: 11, color: AppColors.textHint),
-                                                  const SizedBox(width: 4),
-                                                  Text(room.toString(),
+                                                  const SizedBox(width: 3),
+                                                  Text(room,
                                                       style: const TextStyle(
                                                           fontSize: 11,
                                                           color: AppColors.textSecondary)),
@@ -299,8 +395,8 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
                                           ),
                                         ),
                                         Column(
-                                          crossAxisAlignment: CrossAxisAlignment.end,
                                           mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment: CrossAxisAlignment.end,
                                           children: [
                                             Container(
                                               padding: const EdgeInsets.symmetric(
@@ -310,15 +406,15 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
                                                 borderRadius: BorderRadius.circular(8),
                                               ),
                                               child: Column(children: [
-                                                Text(startTime.toString(),
+                                                Text(startTime,
                                                     style: TextStyle(
                                                         fontSize: 12,
                                                         fontWeight: FontWeight.w700,
                                                         color: color)),
-                                                if (endTime.toString().isNotEmpty)
-                                                  Text(endTime.toString(),
+                                                if (endTime.isNotEmpty)
+                                                  Text(endTime,
                                                       style: TextStyle(
-                                                          fontSize: 11,
+                                                          fontSize: 10.5,
                                                           color: color.withOpacity(0.7))),
                                               ]),
                                             ),
@@ -341,6 +437,51 @@ class _AdminTimetableScreenState extends ConsumerState<AdminTimetableScreen>
               },
             ),
           ),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Toggle button for Secular / Theology ──────────────────────────────────────
+
+class _TypeToggleBtn extends StatelessWidget {
+  final String  label;
+  final IconData icon;
+  final Color   color;
+  final bool    selected;
+  final VoidCallback onTap;
+
+  const _TypeToggleBtn({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: 180.ms,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.2) : AppColors.surface2,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? color : Colors.white.withOpacity(0.07),
+          ),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icon, size: 13, color: selected ? color : AppColors.textHint),
+          const SizedBox(width: 4),
+          Text(label,
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+                  color: selected ? color : AppColors.textHint)),
         ]),
       ),
     );

@@ -55,6 +55,12 @@ import '../features/admin/admissions/admissions_screen.dart';
 // Settings
 import '../features/admin/settings/settings_screen.dart';
 
+// New Features (7-11) + Push Notifications (15)
+import '../features/admin/houses/houses_screen.dart';
+import '../features/admin/leadership/leadership_screen.dart';
+import '../features/shared/messages_screen.dart';
+import '../features/admin/push_notifications/push_notifications_screen.dart';
+
 // ── Teacher ────────────────────────────────────────────────────────────────────
 import '../features/teacher/teacher_dashboard.dart';
 import '../features/teacher/teacher_timetable_screen.dart';
@@ -158,6 +164,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // Settings
           GoRoute(path: '/admin/settings',      builder: (_, __) => const SettingsScreen()),
           GoRoute(path: '/admin/sms-settings',  builder: (_, __) => const SettingsScreen()),
+
+          // New Features
+          GoRoute(path: '/admin/houses',               builder: (_, __) => const HousesScreen()),
+          GoRoute(path: '/admin/leadership',           builder: (_, __) => const LeadershipScreen()),
+          GoRoute(path: '/admin/messages',             builder: (_, __) => const MessagesScreen()),
+          GoRoute(path: '/admin/employees',            builder: (_, __) => const TeachersScreen()),
+          GoRoute(path: '/admin/push-notifications',   builder: (_, __) => const PushNotificationsScreen()),
         ],
       ),
 
@@ -172,6 +185,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/teacher/lesson-attendance', builder: (_, __) => const LessonAttendanceScreen()),
           GoRoute(path: '/teacher/marks',             builder: (_, __) => const MarksScreen()),
           GoRoute(path: '/teacher/profile',    builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/teacher/messages',   builder: (_, __) => const MessagesScreen()),
         ],
       ),
 

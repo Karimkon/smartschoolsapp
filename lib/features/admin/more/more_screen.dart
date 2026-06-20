@@ -34,12 +34,16 @@ class _MoreScreenState extends State<MoreScreen> {
 
   static const List<_FeatureSection> _sections = [
     _FeatureSection('PEOPLE', AppColors.primary, [
-      _FeatureTile('Students',  '/admin/students',  Icons.people_rounded,          Color(0xFF2563EB)),
-      _FeatureTile('Teachers',  '/admin/teachers',  Icons.person_pin_rounded,       Color(0xFF7C3AED)),
-      _FeatureTile('Staff',     '/admin/staff',     Icons.badge_rounded,            Color(0xFF06D6A0)),
-      _FeatureTile('Parents',   '/admin/parents',   Icons.family_restroom_rounded,  Color(0xFFF59E0B)),
-      _FeatureTile('Classes',   '/admin/classes',   Icons.class_rounded,            Color(0xFF3B82F6)),
-      _FeatureTile('Branches',  '/admin/branches',  Icons.account_tree_rounded,     Color(0xFF8B5CF6)),
+      _FeatureTile('Students',   '/admin/students',   Icons.people_rounded,           Color(0xFF2563EB)),
+      _FeatureTile('Employees',  '/admin/employees',  Icons.badge_rounded,            Color(0xFF7C3AED)),
+      _FeatureTile('Parents',    '/admin/parents',    Icons.family_restroom_rounded,  Color(0xFFF59E0B)),
+      _FeatureTile('Classes',    '/admin/classes',    Icons.class_rounded,            Color(0xFF3B82F6)),
+      _FeatureTile('Branches',   '/admin/branches',   Icons.account_tree_rounded,     Color(0xFF8B5CF6)),
+      _FeatureTile('Houses',     '/admin/houses',     Icons.home_work_rounded,        Color(0xFF0891B2)),
+    ]),
+    _FeatureSection('STUDENT LIFE', Color(0xFF10B981), [
+      _FeatureTile('Leadership',   '/admin/leadership',  Icons.star_rounded,            Color(0xFFF59E0B)),
+      _FeatureTile('Disciplinary', '/admin/disciplinary',Icons.gavel_rounded,           Color(0xFFEF4444)),
     ]),
     _FeatureSection('ACADEMICS', Color(0xFF7C3AED), [
       _FeatureTile('Timetable',      '/admin/timetable',    Icons.calendar_month_rounded,  Color(0xFF2563EB)),
@@ -62,17 +66,18 @@ class _MoreScreenState extends State<MoreScreen> {
       _FeatureTile('Att. Reports',     '/admin/attendance-reports',Icons.analytics_rounded,    Color(0xFF7C3AED)),
     ]),
     _FeatureSection('OPERATIONS', AppColors.warning, [
-      _FeatureTile('Library',      '/admin/library',      Icons.local_library_rounded,  Color(0xFFEF4444)),
-      _FeatureTile('Transport',    '/admin/transport',    Icons.directions_bus_rounded,  Color(0xFFF59E0B)),
-      _FeatureTile('Inventory',    '/admin/inventory',    Icons.inventory_2_rounded,     Color(0xFF06D6A0)),
-      _FeatureTile('ID Cards',     '/admin/id-cards',     Icons.badge_rounded,           Color(0xFF2563EB)),
-      _FeatureTile('Disciplinary', '/admin/disciplinary', Icons.gavel_rounded,           Color(0xFFEF4444)),
+      _FeatureTile('Library',   '/admin/library',   Icons.local_library_rounded, Color(0xFFEF4444)),
+      _FeatureTile('Transport', '/admin/transport', Icons.directions_bus_rounded, Color(0xFFF59E0B)),
+      _FeatureTile('Inventory', '/admin/inventory', Icons.inventory_2_rounded,    Color(0xFF06D6A0)),
+      _FeatureTile('ID Cards',  '/admin/id-cards',  Icons.badge_rounded,          Color(0xFF2563EB)),
     ]),
     _FeatureSection('COMMUNICATION & RECEPTION', Color(0xFF2563EB), [
-      _FeatureTile('Announcements', '/admin/announcements', Icons.campaign_rounded,      Color(0xFF2563EB)),
-      _FeatureTile('Events',        '/admin/events',        Icons.event_rounded,         Color(0xFF7C3AED)),
-      _FeatureTile('Reception',     '/admin/reception',     Icons.desk_rounded,          Color(0xFF10B981)),
-      _FeatureTile('Admissions',    '/admin/admissions',    Icons.how_to_reg_rounded,    Color(0xFFF59E0B)),
+      _FeatureTile('Messages',          '/admin/messages',            Icons.chat_rounded,                Color(0xFF2563EB)),
+      _FeatureTile('Announcements',     '/admin/announcements',       Icons.campaign_rounded,            Color(0xFF7C3AED)),
+      _FeatureTile('Push Notify',       '/admin/push-notifications',  Icons.notifications_active_rounded,Color(0xFFEF4444)),
+      _FeatureTile('Events',            '/admin/events',              Icons.event_rounded,               Color(0xFF10B981)),
+      _FeatureTile('Reception',         '/admin/reception',           Icons.desk_rounded,                Color(0xFF0891B2)),
+      _FeatureTile('Admissions',        '/admin/admissions',          Icons.how_to_reg_rounded,          Color(0xFFF59E0B)),
     ]),
     _FeatureSection('SETTINGS', AppColors.textHint, [
       _FeatureTile('School Settings', '/admin/settings',     Icons.settings_rounded, Color(0xFF475569)),
