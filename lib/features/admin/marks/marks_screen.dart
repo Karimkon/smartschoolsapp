@@ -10,6 +10,7 @@ import '../../../core/services/api_service.dart';
 
 final marksSetupProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   final res = await ApiService().get('/marks/setup');
+  if (res.data is! Map) throw Exception('Unexpected response format');
   return Map<String, dynamic>.from(res.data as Map);
 });
 
@@ -287,20 +288,33 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
         final subjects    = List<dynamic>.from(entry['subjects']   ?? []);
         final components  = List<dynamic>.from(entry['components'] ?? []);
         final students    = List<dynamic>.from(entry['students']   ?? []);
-        final existing    = Map<String, dynamic>.from(entry['existing_scores'] ?? {});
+        final rawExisting = entry['existing_scores'];
+        final existing    = (rawExisting is Map)
+            ? Map<String, dynamic>.from(rawExisting)
+            : <String, dynamic>{};
 
-        // Load existing scores into controllers
+        // Load existing scores AFTER build to avoid setState-during-build crash
         if (_readyToEnter) {
-          for (final s in students) {
-            final sid = s['id'].toString();
-            if (!_scores.containsKey(sid)) {
-              final exScore = existing[s['id'].toString()]?['score'];
-              final score   = exScore != null ? (exScore as num).toDouble() : null;
-              _scores[sid]  = score;
-              _controllers.putIfAbsent(sid, () => TextEditingController());
-              if (score != null) _controllers[sid]!.text = score.toStringAsFixed(score.truncateToDouble() == score ? 0 : 1);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            bool changed = false;
+            for (final s in students) {
+              final sid = s['id'].toString();
+              if (!_scores.containsKey(sid)) {
+                final raw     = existing[sid];
+                final exScore = (raw is Map) ? raw['score'] : null;
+                final score   = exScore != null ? (exScore as num).toDouble() : null;
+                _scores[sid]  = score;
+                _controllers.putIfAbsent(sid, () => TextEditingController());
+                if (score != null) {
+                  _controllers[sid]!.text = score.toStringAsFixed(
+                      score.truncateToDouble() == score ? 0 : 1);
+                }
+                changed = true;
+              }
             }
-          }
+            if (changed) setState(() {});
+          });
         }
 
         return Column(children: [

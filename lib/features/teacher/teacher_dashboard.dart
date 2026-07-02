@@ -11,6 +11,7 @@ import '../../core/services/api_service.dart';
 
 final teacherDashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final res = await ApiService().get('/dashboard');
+  if (res.data is! Map) throw Exception('Unexpected response format');
   return Map<String, dynamic>.from(res.data as Map);
 });
 
@@ -155,20 +156,19 @@ class TeacherDashboard extends ConsumerWidget {
     )),
   );
 
-  Widget _buildError(WidgetRef ref, Object e) => Center(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(children: [
-        const Icon(Icons.cloud_off_rounded, color: AppColors.textHint, size: 52),
-        const SizedBox(height: 12),
-        const Text('Could not load dashboard', style: TextStyle(color: AppColors.textSecondary)),
-        const SizedBox(height: 16),
-        ElevatedButton(
-          onPressed: () => ref.invalidate(teacherDashboardProvider),
-          child: const Text('Retry'),
-        ),
-      ]),
-    ),
+  Widget _buildError(WidgetRef ref, Object e) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 40),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Icon(Icons.cloud_off_rounded, color: AppColors.textHint, size: 52),
+      const SizedBox(height: 12),
+      const Text('Could not load dashboard',
+          style: TextStyle(color: AppColors.textSecondary), textAlign: TextAlign.center),
+      const SizedBox(height: 16),
+      ElevatedButton(
+        onPressed: () => ref.invalidate(teacherDashboardProvider),
+        child: const Text('Retry'),
+      ),
+    ]),
   );
 
   Widget _buildStats(Map<String, dynamic> d) {

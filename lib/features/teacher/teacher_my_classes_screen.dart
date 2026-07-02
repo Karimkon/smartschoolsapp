@@ -125,7 +125,7 @@ class TeacherMyClassesScreen extends ConsumerWidget {
       children: [
         // Class teacher badge
         if (isClassTeacher) ...[
-          _ClassTeacherBanner(assignments: ctAssignments)
+          _ClassTeacherBanner(ctAssignments: ctAssignments)
               .animate().fadeIn(duration: 400.ms).slideY(begin: -0.1),
           const SizedBox(height: 16),
         ],
