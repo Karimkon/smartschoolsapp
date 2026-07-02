@@ -13,7 +13,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailCtrl    = TextEditingController();
+  final _loginCtrl    = TextEditingController(); // email or phone
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
   final _formKey = GlobalKey<FormState>();
@@ -28,15 +28,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _loginCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
+  bool _isPhone(String v) => RegExp(r'^[\+\d\s\-]{7,15}$').hasMatch(v.trim());
+
   Future<void> _login() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final ok = await ref.read(authProvider.notifier).login(
-      _emailCtrl.text.trim(),
+      _loginCtrl.text.trim(),
       _passwordCtrl.text,
     );
     if (!mounted) return;
@@ -138,20 +140,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Email
-                        const Text('Email',
+                        // Email or Phone
+                        const Text('Email or Phone Number',
                           style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
                         const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _emailCtrl,
-                          keyboardType: TextInputType.emailAddress,
-                          autocorrect: false,
-                          style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
-                          decoration: const InputDecoration(
-                            hintText: 'Enter your email',
-                            prefixIcon: Icon(Icons.email_outlined, size: 20, color: AppColors.textHint),
+                        StatefulBuilder(
+                          builder: (_, setState2) => TextFormField(
+                            controller: _loginCtrl,
+                            keyboardType: TextInputType.emailAddress,
+                            autocorrect: false,
+                            onChanged: (_) => setState2(() {}),
+                            style: const TextStyle(color: AppColors.textPrimary, fontSize: 15),
+                            decoration: InputDecoration(
+                              hintText: 'Email or phone number',
+                              prefixIcon: Icon(
+                                _isPhone(_loginCtrl.text) ? Icons.phone_outlined : Icons.email_outlined,
+                                size: 20, color: AppColors.textHint,
+                              ),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) return 'Enter your email or phone number';
+                              return null;
+                            },
                           ),
-                          validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
                         ),
 
                         const SizedBox(height: 18),

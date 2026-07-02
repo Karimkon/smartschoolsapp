@@ -21,7 +21,7 @@ class TeacherDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user     = ref.watch(currentUserProvider);
+    final user      = ref.watch(currentUserProvider);
     final dashAsync = ref.watch(teacherDashboardProvider);
 
     return Scaffold(
@@ -42,19 +42,28 @@ class TeacherDashboard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildHeader(user).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0),
+                        dashAsync.when(
+                          loading: () => _buildHeader(user, false),
+                          error:   (_, __) => _buildHeader(user, false),
+                          data:    (d) => _buildHeader(user,
+                            (d['stats'] as Map?)?['is_class_teacher'] == true),
+                        ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0),
                         const SizedBox(height: 24),
                         dashAsync.when(
                           loading: () => _statsShimmer(),
-                          error: (e, _) => _buildError(ref, e),
-                          data: (d) => _buildStats(d),
+                          error:   (e, _) => _buildError(ref, e),
+                          data:    (d) => _buildStats(d),
                         ),
                         const SizedBox(height: 24),
                         SectionHeader(title: 'Quick Actions')
                             .animate(delay: 200.ms).fadeIn().slideY(begin: 0.1),
                         const SizedBox(height: 12),
-                        _buildQuickActions(context)
-                            .animate(delay: 250.ms).fadeIn().slideY(begin: 0.1),
+                        dashAsync.when(
+                          loading: () => _buildQuickActions(context, false),
+                          error:   (_, __) => _buildQuickActions(context, false),
+                          data:    (d) => _buildQuickActions(context,
+                            (d['stats'] as Map?)?['is_class_teacher'] == true),
+                        ).animate(delay: 250.ms).fadeIn().slideY(begin: 0.1),
                         const SizedBox(height: 24),
                         SectionHeader(
                           title: "Today's Lessons",
@@ -64,20 +73,20 @@ class TeacherDashboard extends ConsumerWidget {
                         const SizedBox(height: 12),
                         dashAsync.when(
                           loading: () => _listShimmer(),
-                          error: (_, __) => _listShimmer(),
-                          data: (d) => _buildLessons(d),
+                          error:   (_, __) => _listShimmer(),
+                          data:    (d) => _buildLessons(d),
                         ),
                         const SizedBox(height: 24),
                         SectionHeader(
-                          title: 'Upcoming Assignments',
+                          title: 'Upcoming Events',
                           action: 'View All',
                           onAction: () => context.push('/teacher/assignments'),
                         ).animate(delay: 400.ms).fadeIn().slideY(begin: 0.1),
                         const SizedBox(height: 12),
                         dashAsync.when(
                           loading: () => _listShimmer(count: 3),
-                          error: (_, __) => _listShimmer(count: 3),
-                          data: (d) => _buildAssignments(d),
+                          error:   (_, __) => _listShimmer(count: 3),
+                          data:    (d) => _buildEvents(d),
                         ),
                         const SizedBox(height: 24),
                       ],
@@ -92,7 +101,7 @@ class TeacherDashboard extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(user) {
+  Widget _buildHeader(user, bool isClassTeacher) {
     final name     = user?.name ?? 'Teacher';
     final initials = user?.initials ?? 'T';
     return Row(
@@ -104,8 +113,16 @@ class TeacherDashboard extends ConsumerWidget {
               Text(_greeting(), style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
               const SizedBox(height: 2),
               Text(name, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-              const SizedBox(height: 4),
-              StatusBadge(label: 'Teacher', color: AppColors.roleTeacher),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  StatusBadge(label: 'Teacher', color: AppColors.roleTeacher),
+                  if (isClassTeacher) ...[
+                    const SizedBox(width: 6),
+                    StatusBadge(label: 'Class Teacher', color: AppColors.success),
+                  ],
+                ],
+              ),
             ],
           ),
         ),
@@ -169,20 +186,23 @@ class TeacherDashboard extends ConsumerWidget {
       childAspectRatio: 1.4,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        StatCard(label: 'My Classes', value: '$classes', icon: Icons.class_rounded, color: AppColors.roleTeacher, index: 0),
-        StatCard(label: 'Students', value: '$students', icon: Icons.people_alt_rounded, color: AppColors.primary, index: 1),
-        StatCard(label: 'Assignments', value: '$assignments', icon: Icons.assignment_rounded, color: AppColors.warning, index: 2),
-        StatCard(label: "Today's Lessons", value: '$today', icon: Icons.today_rounded, color: AppColors.success, index: 3),
+        StatCard(label: 'My Classes',      value: '$classes',     icon: Icons.class_rounded,       color: AppColors.roleTeacher, index: 0),
+        StatCard(label: 'My Students',     value: '$students',    icon: Icons.people_alt_rounded,  color: AppColors.primary,     index: 1),
+        StatCard(label: 'Assignments',     value: '$assignments', icon: Icons.assignment_rounded,  color: AppColors.warning,     index: 2),
+        StatCard(label: "Today's Lessons", value: '$today',       icon: Icons.today_rounded,       color: AppColors.success,     index: 3),
       ],
     );
   }
 
-  Widget _buildQuickActions(BuildContext context) {
+  Widget _buildQuickActions(BuildContext context, bool isClassTeacher) {
     final actions = [
-      _QuickAction('Daily\nAttendance', Icons.how_to_reg_rounded, AppColors.success, '/teacher/attendance'),
-      _QuickAction('Lesson\nAttendance', Icons.menu_book_rounded, AppColors.roleTeacher, '/teacher/lesson-attendance'),
-      _QuickAction('Enter\nMarks', Icons.edit_note_rounded, AppColors.roleAccountant, '/teacher/marks'),
-      _QuickAction('Timetable', Icons.calendar_month_rounded, AppColors.primary, '/teacher/timetable'),
+      _QuickAction('Daily\nAttendance', Icons.how_to_reg_rounded,  AppColors.success,       '/teacher/attendance'),
+      _QuickAction('Lesson\nAttendance',Icons.menu_book_rounded,   AppColors.roleTeacher,   '/teacher/lesson-attendance'),
+      _QuickAction('Enter\nMarks',      Icons.edit_note_rounded,   AppColors.roleAccountant,'/teacher/marks'),
+      if (isClassTeacher)
+        _QuickAction('Report\nCards',   Icons.description_rounded, AppColors.primary,       '/teacher/report-cards')
+      else
+        _QuickAction('My Classes',      Icons.grid_view_rounded,   AppColors.primary,       '/teacher/my-classes'),
     ];
     return Row(
       children: actions.map((a) => Expanded(
@@ -237,10 +257,9 @@ class TeacherDashboard extends ConsumerWidget {
         final end     = lesson['end_time']?.toString() ?? '';
         final timeStr = start.isNotEmpty ? _fmtTime(start) : '—';
 
-        final now         = DateTime.now();
-        final startParts  = start.split(':');
-        bool isNow = false;
-        bool isPast = false;
+        final now = DateTime.now();
+        bool isNow = false, isPast = false;
+        final startParts = start.split(':');
         if (startParts.length >= 2) {
           try {
             final sh = int.parse(startParts[0]);
@@ -291,7 +310,7 @@ class TeacherDashboard extends ConsumerWidget {
                 else if (isPast)
                   StatusBadge(label: 'Done', color: AppColors.textHint)
                 else
-                  StatusBadge(label: 'Upcoming', color: AppColors.primary),
+                  StatusBadge(label: 'Soon', color: AppColors.primary),
               ],
             ),
           ),
@@ -300,32 +319,34 @@ class TeacherDashboard extends ConsumerWidget {
     );
   }
 
-  Widget _buildAssignments(Map<String, dynamic> d) {
-    final raw = (d['upcoming_assignments'] as List?) ?? [];
+  // ── Upcoming Events (replaced Upcoming Assignments) ───────────────────────
+
+  Widget _buildEvents(Map<String, dynamic> d) {
+    final raw = (d['upcoming_events'] as List?) ?? [];
     if (raw.isEmpty) {
       return GlassCard(
         padding: const EdgeInsets.all(20),
         child: const Center(
           child: Column(children: [
-            Icon(Icons.assignment_turned_in_rounded, color: AppColors.textHint, size: 36),
+            Icon(Icons.event_rounded, color: AppColors.textHint, size: 36),
             SizedBox(height: 8),
-            Text('No upcoming assignments', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
+            Text('No upcoming events', style: TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           ]),
         ),
       ).animate(delay: 400.ms).fadeIn();
     }
 
-    final colors = [AppColors.roleTeacher, AppColors.accent, AppColors.primary, AppColors.warning, AppColors.success];
+    final colors = [AppColors.primary, AppColors.roleTeacher, AppColors.accent, AppColors.warning, AppColors.success];
 
     return Column(
       children: raw.take(5).toList().asMap().entries.map((e) {
-        final a    = e.value as Map;
-        final idx  = e.key;
+        final ev    = e.value as Map;
+        final idx   = e.key;
         final color = colors[idx % colors.length];
-        final title   = a['title']?.toString() ?? 'Assignment';
-        final subject = a['subject_name']?.toString() ?? a['subject']?.toString() ?? '';
-        final due     = a['due_date']?.toString() ?? '';
-        final dueStr  = due.isNotEmpty ? _fmtDate(due) : 'No due date';
+        final title = ev['title']?.toString() ?? 'Event';
+        final start = ev['start_date']?.toString() ?? '';
+        final end   = ev['end_date']?.toString() ?? '';
+        final dateStr = start.isNotEmpty ? _fmtEventDate(start, end) : 'Date TBD';
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
@@ -333,20 +354,29 @@ class TeacherDashboard extends ConsumerWidget {
             padding: const EdgeInsets.all(14),
             child: Row(
               children: [
-                Container(width: 4, height: 48, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4))),
-                const SizedBox(width: 12),
+                Container(
+                  width: 46, height: 46,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.event_rounded, color: color, size: 22),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                       const SizedBox(height: 3),
-                      if (subject.isNotEmpty)
-                        Text(subject, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
+                      Text(dateStr, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
-                StatusBadge(label: dueStr, color: color),
+                Container(
+                  width: 4, height: 36,
+                  decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)),
+                ),
               ],
             ),
           ),
@@ -363,20 +393,30 @@ class TeacherDashboard extends ConsumerWidget {
       final suffix = h >= 12 ? 'PM' : 'AM';
       if (h > 12) h -= 12;
       if (h == 0) h = 12;
-      return '$h:$m $suffix';
+      return '$h:$m\n$suffix';
     } catch (_) { return t; }
   }
 
-  String _fmtDate(String d) {
+  String _fmtEventDate(String start, String end) {
     try {
-      final dt = DateTime.parse(d);
+      final s   = DateTime.parse(start);
       final now = DateTime.now();
-      final diff = dt.difference(DateTime(now.year, now.month, now.day)).inDays;
-      if (diff == 0) return 'Today';
-      if (diff == 1) return 'Tomorrow';
-      if (diff < 7)  return 'In $diff days';
-      return '${dt.day}/${dt.month}/${dt.year}';
-    } catch (_) { return d; }
+      final diff = s.difference(DateTime(now.year, now.month, now.day)).inDays;
+      String label;
+      if (diff == 0)      label = 'Today';
+      else if (diff == 1) label = 'Tomorrow';
+      else if (diff < 7)  label = 'In $diff days';
+      else                label = '${s.day}/${s.month}/${s.year}';
+      if (end.isNotEmpty && end != start) {
+        try {
+          final e = DateTime.parse(end);
+          if (e.day != s.day || e.month != s.month) {
+            label += ' → ${e.day}/${e.month}';
+          }
+        } catch (_) {}
+      }
+      return label;
+    } catch (_) { return start; }
   }
 }
 

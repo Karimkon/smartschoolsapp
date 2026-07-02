@@ -67,6 +67,7 @@ import '../features/teacher/teacher_timetable_screen.dart';
 import '../features/teacher/teacher_assignments_screen.dart';
 import '../features/teacher/teacher_attendance_screen.dart';
 import '../features/teacher/lesson_attendance_screen.dart';
+import '../features/teacher/teacher_my_classes_screen.dart';
 
 // ── Student ────────────────────────────────────────────────────────────────────
 import '../features/student/student_dashboard.dart';
@@ -178,14 +179,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ShellRoute(
         builder: (ctx, state, child) => NavShell(child: child, role: 'teacher'),
         routes: [
-          GoRoute(path: '/teacher',            builder: (_, __) => const TeacherDashboard()),
-          GoRoute(path: '/teacher/timetable',  builder: (_, __) => const TeacherTimetableScreen()),
-          GoRoute(path: '/teacher/assignments',builder: (_, __) => const TeacherAssignmentsScreen()),
-          GoRoute(path: '/teacher/attendance',         builder: (_, __) => const TeacherAttendanceScreen()),
+          GoRoute(path: '/teacher',                   builder: (_, __) => const TeacherDashboard()),
+          GoRoute(path: '/teacher/timetable',         builder: (_, __) => const TeacherTimetableScreen()),
+          GoRoute(path: '/teacher/assignments',       builder: (_, __) => const TeacherAssignmentsScreen()),
+          GoRoute(path: '/teacher/attendance',        builder: (_, __) => const TeacherAttendanceScreen()),
           GoRoute(path: '/teacher/lesson-attendance', builder: (_, __) => const LessonAttendanceScreen()),
           GoRoute(path: '/teacher/marks',             builder: (_, __) => const MarksScreen()),
-          GoRoute(path: '/teacher/profile',    builder: (_, __) => const ProfileScreen()),
-          GoRoute(path: '/teacher/messages',   builder: (_, __) => const MessagesScreen()),
+          GoRoute(path: '/teacher/my-classes',        builder: (_, __) => const TeacherMyClassesScreen()),
+          GoRoute(path: '/teacher/report-cards',      builder: (_, __) => const ReportCardsScreen()),
+          GoRoute(path: '/teacher/profile',           builder: (_, __) => const ProfileScreen()),
+          GoRoute(path: '/teacher/messages',          builder: (_, __) => const MessagesScreen()),
         ],
       ),
 

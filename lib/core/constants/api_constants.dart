@@ -37,6 +37,14 @@ class ApiConstants {
   static const String exams       = '/exams';
   static const String materials   = '/materials';
 
+  // Marks
+  static const String marksSetup = '/marks/setup';
+  static const String marksEntry = '/marks/entry';
+  static const String marksSave  = '/marks/save';
+
+  // Teacher-specific
+  static const String teacherAssignments = '/teacher/assignments';
+
   // Library
   static const String books      = '/library/books';
   static const String borrowings = '/library/borrowings';
@@ -46,7 +54,7 @@ class ApiConstants {
   static const String events        = '/events';
 
   // Houses (Feature 8)
-  static const String houses       = '/houses';
+  static const String houses        = '/houses';
   static const String houseStudents = '/houses/{id}';
 
   // Student Leadership (Feature 9)
@@ -54,10 +62,10 @@ class ApiConstants {
   static const String leadershipPositions = '/student-leadership/positions';
 
   // Messages (Feature 10)
-  static const String messages         = '/messages';
-  static const String messageThread    = '/messages/{id}';
-  static const String messagesUnread   = '/messages/unread';
-  static const String messagesUsers    = '/messages/users';
+  static const String messages       = '/messages';
+  static const String messageThread  = '/messages/{id}';
+  static const String messagesUnread = '/messages/unread';
+  static const String messagesUsers  = '/messages/users';
 
   // Parent-specific
   static const String parentMessages = '/parent/messages';
@@ -70,6 +78,6 @@ class ApiConstants {
   static const String settings = '/settings';
 
   // Push Notifications (Feature 15)
-  static const String deviceToken        = '/device-token';
-  static const String pushNotifications  = '/push-notifications';
+  static const String deviceToken       = '/device-token';
+  static const String pushNotifications = '/push-notifications';
 }
