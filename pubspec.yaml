@@ -1,7 +1,7 @@
 name: smartschools
 description: Smart Schools — All-in-one school management platform
 publish_to: 'none'
-version: 1.0.0+18
+version: 1.0.0+19
 
 environment:
   sdk: ^3.10.4
