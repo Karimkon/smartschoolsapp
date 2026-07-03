@@ -53,7 +53,7 @@ class TeacherDashboard extends ConsumerWidget {
                         dashAsync.when(
                           loading: () => _statsShimmer(),
                           error:   (e, _) => _buildError(ref, e),
-                          data:    (d) => _buildStats(d),
+                          data:    (d) => _buildStats(context, d),
                         ),
                         const SizedBox(height: 24),
                         SectionHeader(title: 'Quick Actions')
@@ -171,7 +171,7 @@ class TeacherDashboard extends ConsumerWidget {
     ]),
   );
 
-  Widget _buildStats(Map<String, dynamic> d) {
+  Widget _buildStats(BuildContext context, Map<String, dynamic> d) {
     final stats       = d['stats'] as Map? ?? {};
     final classes     = stats['classes']     as int? ?? 0;
     final students    = stats['students']    as int? ?? 0;
@@ -186,10 +186,14 @@ class TeacherDashboard extends ConsumerWidget {
       childAspectRatio: 1.4,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        StatCard(label: 'My Classes',      value: '$classes',     icon: Icons.class_rounded,       color: AppColors.roleTeacher, index: 0),
-        StatCard(label: 'My Students',     value: '$students',    icon: Icons.people_alt_rounded,  color: AppColors.primary,     index: 1),
-        StatCard(label: 'Assignments',     value: '$assignments', icon: Icons.assignment_rounded,  color: AppColors.warning,     index: 2),
-        StatCard(label: "Today's Lessons", value: '$today',       icon: Icons.today_rounded,       color: AppColors.success,     index: 3),
+        StatCard(label: 'My Classes',      value: '$classes',     icon: Icons.class_rounded,       color: AppColors.roleTeacher, index: 0,
+            onTap: () => context.push('/teacher/my-classes')),
+        StatCard(label: 'My Students',     value: '$students',    icon: Icons.people_alt_rounded,  color: AppColors.primary,     index: 1,
+            onTap: () => context.push('/teacher/students')),
+        StatCard(label: 'Assignments',     value: '$assignments', icon: Icons.assignment_rounded,  color: AppColors.warning,     index: 2,
+            onTap: () => context.push('/teacher/assignments')),
+        StatCard(label: "Today's Lessons", value: '$today',       icon: Icons.today_rounded,       color: AppColors.success,     index: 3,
+            onTap: () => context.push('/teacher/timetable')),
       ],
     );
   }

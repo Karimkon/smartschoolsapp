@@ -68,6 +68,7 @@ import '../features/teacher/teacher_assignments_screen.dart';
 import '../features/teacher/teacher_attendance_screen.dart';
 import '../features/teacher/lesson_attendance_screen.dart';
 import '../features/teacher/teacher_my_classes_screen.dart';
+import '../features/teacher/teacher_students_screen.dart';
 
 // ── Student ────────────────────────────────────────────────────────────────────
 import '../features/student/student_dashboard.dart';
@@ -186,6 +187,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/teacher/lesson-attendance', builder: (_, __) => const LessonAttendanceScreen()),
           GoRoute(path: '/teacher/marks',             builder: (_, __) => const MarksScreen()),
           GoRoute(path: '/teacher/my-classes',        builder: (_, __) => const TeacherMyClassesScreen()),
+          GoRoute(path: '/teacher/students',          builder: (_, __) => const TeacherStudentsScreen()),
           GoRoute(path: '/teacher/report-cards',      builder: (_, __) => const ReportCardsScreen()),
           GoRoute(path: '/teacher/profile',           builder: (_, __) => const ProfileScreen()),
           GoRoute(path: '/teacher/messages',          builder: (_, __) => const MessagesScreen()),
