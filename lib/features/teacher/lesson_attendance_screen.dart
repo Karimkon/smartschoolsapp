@@ -23,9 +23,19 @@ final _lessonSubjectsProvider = FutureProvider.autoDispose
   return List<dynamic>.from(data ?? []);
 });
 
+// Key format: "classId|subjectId|date|streamId" — String key so Riverpod family
+// equality works (a Map literal is a new instance every build → infinite refetch loop).
 final _lessonSessionProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, Map<String, String>>((ref, params) async {
+    .family<Map<String, dynamic>, String>((ref, key) async {
+  final parts = key.split('|');
+  final params = <String, String>{
+    'class_id': parts[0],
+    'subject_id': parts[1],
+    'date': parts[2],
+  };
+  if (parts.length > 3 && parts[3].isNotEmpty) params['stream_id'] = parts[3];
   final res = await ApiService().get('/lesson-attendance', params: params);
+  if (res.data is! Map) throw Exception('Unexpected response format');
   return Map<String, dynamic>.from(res.data as Map);
 });
 
@@ -46,6 +56,7 @@ class _LessonAttendanceScreenState extends ConsumerState<LessonAttendanceScreen>
   String _className = '';
   String? _subjectId;
   String _subjectName = '';
+  String? _streamId;
   final Map<String, _AttStatus> _attendance = {};
   bool _submitting = false;
 
@@ -242,6 +253,7 @@ class _LessonAttendanceScreenState extends ConsumerState<LessonAttendanceScreen>
                     _className = cls['name']?.toString() ?? '';
                     _subjectId = null;
                     _subjectName = '';
+                    _streamId  = null;
                     _attendance.clear();
                   });
                 }
@@ -249,6 +261,37 @@ class _LessonAttendanceScreenState extends ConsumerState<LessonAttendanceScreen>
             ),
           ),
         ).animate(delay: 100.ms).fadeIn(),
+        if (_streamsForClass(classes).isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.surface2,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.07)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _streamId ?? '',
+                isExpanded: true,
+                dropdownColor: AppColors.surface1,
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+                icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('All Streams')),
+                  ..._streamsForClass(classes).map((s) => DropdownMenuItem(
+                        value: s['id'].toString(),
+                        child: Text('Stream: ${s['name']}'),
+                      )),
+                ],
+                onChanged: (v) => setState(() {
+                  _streamId = (v == null || v.isEmpty) ? null : v;
+                  _attendance.clear();
+                }),
+              ),
+            ),
+          ).animate(delay: 120.ms).fadeIn(),
+        ],
         const SizedBox(height: 10),
 
         // Subject picker
@@ -337,9 +380,17 @@ class _LessonAttendanceScreenState extends ConsumerState<LessonAttendanceScreen>
     );
   }
 
+  List<dynamic> _streamsForClass(List<dynamic> classes) {
+    if (_classId == null) return const [];
+    final cls = classes.firstWhere(
+        (c) => c['id'].toString() == _classId, orElse: () => null);
+    if (cls == null || cls['streams'] == null) return const [];
+    return List<dynamic>.from(cls['streams'] as List);
+  }
+
   Widget _buildStudentList() {
-    final params = {'class_id': _classId!, 'subject_id': _subjectId!, 'date': _dateStr};
-    final sessionAsync = ref.watch(_lessonSessionProvider(params));
+    final sessionAsync = ref.watch(_lessonSessionProvider(
+        '${_classId!}|${_subjectId!}|$_dateStr|${_streamId ?? ''}'));
 
     return sessionAsync.when(
       loading: () => ListView.builder(

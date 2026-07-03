@@ -7,6 +7,7 @@ import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
 import 'parent_fees_screen.dart' show parentChildrenProvider;
 import '../shared/report_card_pdf_screen.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -273,7 +274,7 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
                               Row(mainAxisSize: MainAxisSize.min, children: [
                                 const Icon(Icons.bar_chart_rounded, size: 11, color: AppColors.textSecondary),
                                 const SizedBox(width: 3),
-                                Text('Avg: ${(avg as num).toStringAsFixed(1)}',
+                                Text('Avg: ${toD(avg).toStringAsFixed(1)}',
                                     style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
                               ]),
                             if (rank != null && totalStu != null)
@@ -308,9 +309,9 @@ class _ParentReportsScreenState extends ConsumerState<ParentReportsScreen> {
                           final sName  = sub['name']?.toString() ?? '';
                           final sGrade = sub['grade']?.toString() ?? '—';
                           final sAch   = sub['achievement']?.toString() ?? '';
-                          final sPct   = (sub['percent'] as num?)?.toDouble();
-                          final sWt    = (sub['weighted'] as num?)?.toDouble();
-                          final sTotal = (sub['total'] as num?)?.toDouble();
+                          final sPct   = toDN(sub['percent']);
+                          final sWt    = toDN(sub['weighted']);
+                          final sTotal = toDN(sub['total']);
 
                           // For display: use percent if available, else weighted or total
                           double? displayPct = sPct;

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────────
 
@@ -22,8 +23,8 @@ class ClassModel {
             : j['teacher_name']?.toString().trim(),
         room         = j['room']?.toString(),
         section      = j['section']?.toString(),
-        studentCount = (j['student_count'] as num?)?.toInt() ?? 0,
-        capacity     = (j['capacity'] as num?)?.toInt() ?? 40;
+        studentCount = toI(j['student_count'], 0),
+        capacity     = toI(j['capacity'], 40);
 }
 
 // ── Provider ───────────────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/providers/auth_provider.dart';
@@ -43,6 +44,56 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       case 'accountant':   return 'Accountant';
       case 'librarian':    return 'Librarian';
       default:             return role;
+    }
+  }
+
+  Future<void> _confirmAccountDeletion() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surface1,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Delete Account?',
+            style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
+        content: const Text(
+          'Your account is managed by your school. Submitting this request asks your '
+          'school administrator to permanently delete your account and associated '
+          'personal data. This is processed within 30 days and cannot be undone.',
+          style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Request Deletion'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    try {
+      final res = await ApiService().post('/account/delete-request');
+      final msg = (res.data is Map ? res.data['message']?.toString() : null) ??
+          'Deletion request submitted.';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not submit request. Please try again.'),
+          backgroundColor: AppColors.error,
+        ));
+      }
     }
   }
 
@@ -255,11 +306,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     iconColor: AppColors.primary,
                     label: 'Help & Support',
                     trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Opening Help Center...'), backgroundColor: AppColors.primary),
-                      );
-                    },
+                    onTap: () => launchUrl(
+                      Uri.parse('https://smartschoolshub.com/#contact'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+                  _divider(),
+
+                  // Privacy Policy
+                  _SettingsRow(
+                    icon: Icons.privacy_tip_outlined,
+                    iconColor: AppColors.success,
+                    label: 'Privacy Policy',
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
+                    onTap: () => launchUrl(
+                      Uri.parse('https://smartschoolshub.com/privacy-policy'),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                  ),
+                  _divider(),
+
+                  // Request account deletion (App Store guideline 5.1.1)
+                  _SettingsRow(
+                    icon: Icons.person_remove_outlined,
+                    iconColor: AppColors.warning,
+                    label: 'Request Account Deletion',
+                    trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.textHint),
+                    onTap: _confirmAccountDeletion,
                   ),
                 ],
               ),

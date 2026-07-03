@@ -7,6 +7,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -189,7 +190,7 @@ class AccountantDashboard extends ConsumerWidget {
       );
     }
 
-    final amounts = monthly.map((m) => ((m as Map)['amount'] as num?)?.toDouble() ?? 0.0).toList();
+    final amounts = monthly.map((m) => toD((m as Map)['amount'], 0.0)).toList();
     final maxVal  = amounts.isEmpty ? 1.0 : amounts.reduce((a, b) => a > b ? a : b);
     final chartMax = maxVal > 0 ? maxVal * 1.25 : 100.0;
 
@@ -259,7 +260,7 @@ class AccountantDashboard extends ConsumerWidget {
             borderData: FlBorderData(show: false),
             barGroups: monthly.asMap().entries.map((e) {
               final isLatest = e.key == monthly.length - 1;
-              final amt = ((e.value as Map)['amount'] as num?)?.toDouble() ?? 0;
+              final amt = toD((e.value as Map)['amount'], 0);
               return BarChartGroupData(x: e.key, barRods: [
                 BarChartRodData(
                   toY: amt,
@@ -342,7 +343,7 @@ class AccountantDashboard extends ConsumerWidget {
         final p          = e.value as Map;
         final idx        = e.key;
         final name       = p['student_name']?.toString() ?? 'Unknown';
-        final amount     = (p['amount'] as num?)?.toDouble() ?? 0;
+        final amount     = toD(p['amount'], 0);
         final method     = (p['payment_method'] ?? p['method'])?.toString() ?? 'Cash';
         final date       = p['payment_date']?.toString() ?? p['created_at']?.toString() ?? '';
         final color      = methodColors[method.toLowerCase()] ?? AppColors.textSecondary;

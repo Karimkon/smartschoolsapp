@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
 import 'parent_fees_screen.dart' show parentChildrenProvider;
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -140,7 +141,7 @@ class _ParentAttendanceScreenState extends ConsumerState<ParentAttendanceScreen>
         final summary = data['summary'] as Map? ?? {};
         final monthly = (data['monthly'] as List?) ?? [];
         final recent  = (data['recent']  as List?) ?? [];
-        final pct     = (summary['pct'] as num?)?.toInt() ?? 0;
+        final pct     = toI(summary['pct'], 0);
 
         return RefreshIndicator(
           color: AppColors.primary,
@@ -181,9 +182,9 @@ class _ParentAttendanceScreenState extends ConsumerState<ParentAttendanceScreen>
               ...monthly.asMap().entries.map((e) {
                 final m       = e.value as Map;
                 final i       = e.key;
-                final present = (m['present'] as num?)?.toInt() ?? 0;
-                final absent  = (m['absent']  as num?)?.toInt() ?? 0;
-                final late    = (m['late']    as num?)?.toInt() ?? 0;
+                final present = toI(m['present'], 0);
+                final absent  = toI(m['absent'] , 0);
+                final late    = toI(m['late']   , 0);
                 final total   = present + absent + late;
                 final mpct    = total > 0 ? ((present / total) * 100).round() : 0;
                 return Padding(

@@ -16,9 +16,15 @@ final _teacherClassesProvider = FutureProvider.autoDispose<List<dynamic>>((ref) 
   return List<dynamic>.from(data ?? []);
 });
 
+// Key format: "classId|date|streamId" — String key so Riverpod family equality
+// works (a Map literal is a new instance every build → infinite refetch loop).
 final _teacherAttendanceProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, Map<String, String>>((ref, params) async {
+    .family<Map<String, dynamic>, String>((ref, key) async {
+  final parts = key.split('|');
+  final params = <String, String>{'class_id': parts[0], 'date': parts[1]};
+  if (parts.length > 2 && parts[2].isNotEmpty) params['stream_id'] = parts[2];
   final res = await ApiService().get('/attendance', params: params);
+  if (res.data is! Map) throw Exception('Unexpected response format');
   return Map<String, dynamic>.from(res.data as Map);
 });
 
@@ -39,6 +45,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
   DateTime _date = DateTime.now();
   String? _selectedClassId;
   String _selectedClassName = '';
+  String? _selectedStreamId;
   final Map<String, _AttStatus> _attendance = {};
   bool _submitting = false;
 
@@ -185,7 +192,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
             }
 
             final attendanceAsync = ref.watch(_teacherAttendanceProvider(
-                {'class_id': _selectedClassId!, 'date': _dateStr}));
+                '${_selectedClassId!}|$_dateStr|${_selectedStreamId ?? ''}'));
 
             return attendanceAsync.when(
               loading: () => Column(children: [
@@ -370,6 +377,7 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
                   setState(() {
                     _selectedClassId = v;
                     _selectedClassName = cls['name']?.toString() ?? '';
+                    _selectedStreamId = null;
                     _attendance.clear();
                   });
                 }
@@ -377,6 +385,38 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
             ),
           ),
         ).animate(delay: 100.ms).fadeIn(),
+        if (_streamsForSelectedClass(classes).isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: AppColors.surface2,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.07)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedStreamId ?? '',
+                isExpanded: true,
+                dropdownColor: AppColors.surface1,
+                style: const TextStyle(
+                    color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w500),
+                icon: const Icon(Icons.arrow_drop_down_rounded, color: AppColors.textSecondary),
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('All Streams')),
+                  ..._streamsForSelectedClass(classes).map((s) => DropdownMenuItem(
+                        value: s['id'].toString(),
+                        child: Text('Stream: ${s['name']}'),
+                      )),
+                ],
+                onChanged: (v) => setState(() {
+                  _selectedStreamId = (v == null || v.isEmpty) ? null : v;
+                  _attendance.clear();
+                }),
+              ),
+            ),
+          ).animate(delay: 120.ms).fadeIn(),
+        ],
         const SizedBox(height: 10),
         GlassCard(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -398,6 +438,14 @@ class _TeacherAttendanceScreenState extends ConsumerState<TeacherAttendanceScree
   }
 
   Widget _vDivider() => Container(width: 1, height: 30, color: Colors.white12);
+
+  List<dynamic> _streamsForSelectedClass(List<dynamic> classes) {
+    if (_selectedClassId == null) return const [];
+    final cls = classes.firstWhere(
+        (c) => c['id'].toString() == _selectedClassId, orElse: () => null);
+    if (cls == null || cls['streams'] == null) return const [];
+    return List<dynamic>.from(cls['streams'] as List);
+  }
 }
 
 // ── Sub-widgets ───────────────────────────────────────────────────────────────

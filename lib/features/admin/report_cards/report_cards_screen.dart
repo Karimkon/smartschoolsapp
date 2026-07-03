@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -170,8 +171,8 @@ class _ReportCardsScreenState extends ConsumerState<ReportCardsScreen> {
                           final className = r['class_name']?.toString() ?? '';
                           final session   = r['session_name']?.toString() ?? r['session_year_id']?.toString() ?? '';
                           final status    = r['status']?.toString() ?? 'draft';
-                          final marks     = (r['marks_obtained'] as num?)?.toDouble() ?? 0;
-                          final total     = (r['total_marks'] as num?)?.toDouble() ?? 0;
+                          final marks     = toD(r['marks_obtained'], 0);
+                          final total     = toD(r['total_marks'], 0);
                           final average   = total > 0 ? (marks / total * 100) : 0.0;
                           final grade     = r['grade']?.toString() ?? _grade(average);
                           final gColor    = _gradeColor(average);

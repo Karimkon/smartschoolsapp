@@ -8,6 +8,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
@@ -82,7 +83,7 @@ final superAdminDashboardProvider = FutureProvider<SuperAdminDashboardData>((ref
           final color = tierColors[e.key % tierColors.length];
           return TierCount(
             _capitalize(p['plan']?.toString() ?? 'Unknown'),
-            (p['count'] as num?)?.toInt() ?? 0,
+            toI(p['count'], 0),
             color,
           );
         }).toList();
@@ -111,10 +112,10 @@ final superAdminDashboardProvider = FutureProvider<SuperAdminDashboardData>((ref
   }).toList();
 
   return SuperAdminDashboardData(
-    totalSchools:   (schools['total']   as num?)?.toInt() ?? 0,
-    activeSchools:  (schools['active']  as num?)?.toInt() ?? 0,
-    totalStudents:  (d['students']      as num?)?.toInt() ?? 0,
-    totalRevenue:   (revenue['total']   as num?)?.toDouble() ?? 0,
+    totalSchools:   toI(schools['total']  , 0),
+    activeSchools:  toI(schools['active'] , 0),
+    totalStudents:  toI(d['students']     , 0),
+    totalRevenue:   toD(revenue['total']  , 0),
     schoolsByTier:  tiers,
     recentRegistrations: recent,
     health: const PlatformHealth(99.9, 0, 0, 0),

@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -150,7 +151,7 @@ class StudentDashboard extends ConsumerWidget {
 
   Widget _buildStats(Map<String, dynamic> d) {
     final student    = d['student'] as Map? ?? {};
-    final feeBalance = (d['fee_balance'] as num?)?.toDouble() ?? 0;
+    final feeBalance = toD(d['fee_balance'], 0);
     final className  = student['class_name']?.toString() ?? '—';
     final admNo      = student['admission_number']?.toString() ?? '—';
     final timetable  = (d['timetable'] as List?) ?? [];

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -123,8 +124,8 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                 data: (data) {
                   final expenses    = (data['data'] as List?) ?? [];
                   final summary     = data['summary'] as Map? ?? {};
-                  final thisMonth   = (summary['this_month'] as num?)?.toDouble() ?? 0;
-                  final total       = (summary['total'] as num?)?.toDouble() ?? 0;
+                  final thisMonth   = toD(summary['this_month'], 0);
+                  final total       = toD(summary['total'], 0);
                   final pendingCount = expenses.where((e) =>
                       (e as Map)['status']?.toString().toLowerCase() == 'pending').length;
 
@@ -134,7 +135,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                     final m = e as Map;
                     if ((m['status']?.toString().toLowerCase() ?? '') != 'rejected') {
                       final cat = m['category']?.toString() ?? 'Other';
-                      final amt = (m['amount'] as num?)?.toDouble() ?? 0;
+                      final amt = toD(m['amount'], 0);
                       catMap[cat] = (catMap[cat] ?? 0) + amt;
                     }
                   }
@@ -194,7 +195,7 @@ class _ExpensesScreenState extends ConsumerState<ExpensesScreen> {
                               final e = entry.value as Map;
                               final status   = e['status']?.toString() ?? 'pending';
                               final category = e['category']?.toString() ?? 'Other';
-                              final amount   = (e['amount'] as num?)?.toDouble() ?? 0;
+                              final amount   = toD(e['amount'], 0);
                               final date     = e['date']?.toString() ?? '';
                               final title    = e['title']?.toString() ?? '';
                               final catColor = _categoryColor(category);

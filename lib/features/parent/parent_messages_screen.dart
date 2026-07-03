@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -116,9 +117,9 @@ class ParentMessagesScreen extends ConsumerWidget {
                         final c       = convs[i] as Map;
                         final name    = c['other_name']?.toString() ?? 'Staff';
                         final last    = c['last_message']?.toString() ?? '';
-                        final unread  = (c['unread_count'] as num?)?.toInt() ?? 0;
+                        final unread  = toI(c['unread_count'], 0);
                         final role    = c['other_role']?.toString() ?? 'staff';
-                        final convId  = (c['id'] as num).toInt();
+                        final convId  = toI(c['id']);
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 10),
@@ -350,7 +351,7 @@ class _NewMessageSheetState extends ConsumerState<_NewMessageSheet> {
                 style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
                 items: staff.map((s) {
                   final m    = s as Map;
-                  final id   = (m['id'] as num).toInt();
+                  final id   = toI(m['id']);
                   final name = m['name']?.toString() ?? 'Staff';
                   final role = m['role']?.toString() ?? 'staff';
                   return DropdownMenuItem<int>(

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -202,7 +203,7 @@ class _IDCardsScreenState extends ConsumerState<IDCardsScreen> {
                           itemCount: items.length,
                           itemBuilder: (ctx, i) {
                             final p        = items[i] as Map;
-                            final id       = (p['id'] as num).toInt();
+                            final id       = toI(p['id']);
                             final selected = _selected.contains(id);
 
                             final name = isStudent

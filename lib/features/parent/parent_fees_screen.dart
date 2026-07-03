@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -164,9 +165,9 @@ class _ParentFeesScreenState extends ConsumerState<ParentFeesScreen>
         final summary  = data['summary'] as Map? ?? {};
         final invoices = (data['invoices'] as List?) ?? [];
         final payments = (data['payments'] as List?) ?? [];
-        final billed   = (summary['billed']  as num?)?.toDouble() ?? 0;
-        final paid     = (summary['paid']    as num?)?.toDouble() ?? 0;
-        final balance  = (summary['balance'] as num?)?.toDouble() ?? 0;
+        final billed   = toD(summary['billed'] , 0);
+        final paid     = toD(summary['paid']   , 0);
+        final balance  = toD(summary['balance'], 0);
 
         return Column(children: [
           // Summary card

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -88,10 +89,10 @@ class AttendanceReportsScreen extends ConsumerWidget {
             // Compute summary stats from trend data
             final avgPct = trend.isEmpty
                 ? 0
-                : (trend.map((d) => (d as Map)['pct'] as num).reduce((a, b) => a + b) /
+                : (trend.map((d) => toD((d as Map)['pct'])).reduce((a, b) => a + b) /
                     trend.length).round();
-            final totalPresent = trend.fold<int>(0, (s, d) => s + ((d as Map)['present'] as num).toInt());
-            final totalAbsent  = trend.fold<int>(0, (s, d) => s + (((d as Map)['total'] as num) - ((d as Map)['present'] as num)).toInt());
+            final totalPresent = trend.fold<int>(0, (s, d) => s + toI((d as Map)['present']));
+            final totalAbsent  = trend.fold<int>(0, (s, d) => s + (toD((d as Map)['total']) - toD((d as Map)['present'])).toInt());
 
             // Last 7 days for chart
             final chartData = trend.length > 7 ? trend.sublist(trend.length - 7) : trend;
@@ -180,7 +181,7 @@ class AttendanceReportsScreen extends ConsumerWidget {
                         ),
                         borderData: FlBorderData(show: false),
                         barGroups: chartData.asMap().entries.map((e) {
-                          final pct = ((e.value as Map)['pct'] as num).toDouble();
+                          final pct = toD((e.value as Map)['pct']);
                           return BarChartGroupData(
                             x: e.key,
                             barRods: [BarChartRodData(
@@ -218,7 +219,7 @@ class AttendanceReportsScreen extends ConsumerWidget {
                         const SizedBox(height: 12),
                         ...classes.asMap().entries.map((e) {
                           final c   = e.value as Map;
-                          final pct = (c['pct'] as num).toInt();
+                          final pct = toI(c['pct']);
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 14),
                             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -243,7 +244,7 @@ class AttendanceReportsScreen extends ConsumerWidget {
                                 _StatChip('P: ${c["present"]}', AppColors.success),
                                 const SizedBox(width: 6),
                                 _StatChip('A: ${c["absent"]}', AppColors.error),
-                                if ((c['late'] as num) > 0) ...[
+                                if (toI(c['late']) > 0) ...[
                                   const SizedBox(width: 6),
                                   _StatChip('L: ${c["late"]}', AppColors.warning),
                                 ],

@@ -14,7 +14,7 @@ final marksSetupProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref
   return Map<String, dynamic>.from(res.data as Map);
 });
 
-// Key format: "classId|curriculumId|sessionId|subjectId|componentId|term"
+// Key format: "classId|curriculumId|sessionId|subjectId|componentId|term|streamId"
 // Using String (not Map) so Riverpod family equality works correctly.
 final marksEntryProvider = FutureProvider.autoDispose
     .family<Map<String, dynamic>, String>((ref, key) async {
@@ -27,8 +27,17 @@ final marksEntryProvider = FutureProvider.autoDispose
   };
   if (parts[3].isNotEmpty) params['subject_id']   = parts[3];
   if (parts[4].isNotEmpty) params['component_id'] = parts[4];
+  if (parts.length > 6 && parts[6].isNotEmpty) params['stream_id'] = parts[6];
   final res = await ApiService().get('/marks/entry', params: params);
   return Map<String, dynamic>.from(res.data as Map);
+});
+
+final classStreamsProvider = FutureProvider.autoDispose
+    .family<List<dynamic>, String>((ref, classId) async {
+  final res = await ApiService().get('/streams', params: {'class_id': classId});
+  final data = res.data;
+  if (data is Map) return List<dynamic>.from(data['data'] ?? []);
+  return const [];
 });
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -40,6 +49,13 @@ class MarksScreen extends ConsumerStatefulWidget {
   ConsumerState<MarksScreen> createState() => _MarksScreenState();
 }
 
+/// MySQL DECIMAL columns arrive as JSON strings ("100.00") — never cast with `as num`.
+double? _toDouble(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v.toDouble();
+  return double.tryParse(v.toString());
+}
+
 class _MarksScreenState extends ConsumerState<MarksScreen> {
   // Filter state
   String? _classId, _className;
@@ -47,6 +63,7 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
   String? _sessionYearId, _sessionName;
   String? _subjectId, _subjectName;
   String? _componentId, _componentName;
+  String? _streamId;
   double? _componentMax;
   int _term = 1;
 
@@ -84,7 +101,7 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
 
   // Stable String key for marksEntryProvider family (Map has no value equality in Dart)
   String get _entryKey =>
-      '${_classId ?? ''}|${_curriculumId ?? ''}|${_sessionYearId ?? ''}|${_subjectId ?? ''}|${_componentId ?? ''}|$_term';
+      '${_classId ?? ''}|${_curriculumId ?? ''}|${_sessionYearId ?? ''}|${_subjectId ?? ''}|${_componentId ?? ''}|$_term|${_streamId ?? ''}';
 
   Future<void> _saveMarks(List<dynamic> students) async {
     if (!_readyToEnter) return;
@@ -228,7 +245,7 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
                         _classId = v;
                         _className = classes.firstWhere(
                           (c) => c['id'].toString() == v, orElse: () => {})['name']?.toString();
-                        _subjectId = null; _componentId = null; _scores.clear();
+                        _subjectId = null; _componentId = null; _streamId = null; _scores.clear();
                       }),
                     )),
                     const SizedBox(width: 8),
@@ -247,6 +264,8 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
                       }),
                     )),
                   ]),
+                  // Row 3: Stream (only when the class has streams)
+                  if (_classId != null) _buildStreamRow(),
                 ]),
               ),
 
@@ -302,8 +321,7 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
               final sid = s['id'].toString();
               if (!_scores.containsKey(sid)) {
                 final raw     = existing[sid];
-                final exScore = (raw is Map) ? raw['score'] : null;
-                final score   = exScore != null ? (exScore as num).toDouble() : null;
+                final score   = _toDouble((raw is Map) ? raw['score'] : null);
                 _scores[sid]  = score;
                 _controllers.putIfAbsent(sid, () => TextEditingController());
                 if (score != null) {
@@ -350,8 +368,8 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
                   _componentId = v;
                   final comp = components.firstWhere(
                     (c) => c['id'].toString() == v, orElse: () => {});
-                  _componentName = comp['label']?.toString();
-                  _componentMax  = (comp['max_score'] as num?)?.toDouble();
+                  _componentName = comp['label']?.toString() ?? comp['name']?.toString();
+                  _componentMax  = _toDouble(comp['max_score']);
                   _scores.clear(); _controllers.clear();
                 }),
               )),
@@ -397,7 +415,11 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
                         final s      = students[i] as Map;
                         final sid    = s['id'].toString();
                         final name   = s['name']?.toString() ?? '';
-                        final admNo  = s['admission_number']?.toString() ?? '';
+                        final stream = s['stream_name']?.toString() ?? '';
+                        final admNo  = [
+                          s['admission_number']?.toString() ?? '',
+                          if (stream.isNotEmpty) stream,
+                        ].where((e) => e.isNotEmpty).join(' · ');
                         final score  = _scores[sid];
                         final max    = _componentMax ?? 100;
                         final ctrl   = _controllers.putIfAbsent(sid, () => TextEditingController());
@@ -497,6 +519,37 @@ class _MarksScreenState extends ConsumerState<MarksScreen> {
             ),
           ],
         ]);
+      },
+    );
+  }
+
+  Widget _buildStreamRow() {
+    final streamsAsync = ref.watch(classStreamsProvider(_classId!));
+    return streamsAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (streams) {
+        if (streams.isEmpty) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: _dropdown(
+            label: 'Stream (optional)',
+            value: _streamId ?? '',
+            items: [
+              const DropdownMenuItem(value: '', child: Text('All Streams')),
+              ...streams.map((s) => DropdownMenuItem(
+                    value: s['id'].toString(),
+                    child: Text(s['name']?.toString() ?? '',
+                        overflow: TextOverflow.ellipsis),
+                  )),
+            ],
+            onChanged: (v) => setState(() {
+              _streamId = (v == null || v.isEmpty) ? null : v;
+              _scores.clear();
+              _controllers.clear();
+            }),
+          ),
+        );
       },
     );
   }

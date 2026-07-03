@@ -7,6 +7,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -108,9 +109,9 @@ class ParentDashboard extends ConsumerWidget {
     final feeSummary = d['fee_summary']    as Map?   ?? {};
     final announce   = (d['announcements'] as List?) ?? [];
 
-    final billed  = (feeSummary['billed']  as num?)?.toDouble() ?? 0;
-    final paid    = (feeSummary['paid']    as num?)?.toDouble() ?? 0;
-    final balance = (feeSummary['balance'] as num?)?.toDouble() ?? 0;
+    final billed  = toD(feeSummary['billed'] , 0);
+    final paid    = toD(feeSummary['paid']   , 0);
+    final balance = toD(feeSummary['balance'], 0);
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
@@ -125,8 +126,8 @@ class ParentDashboard extends ConsumerWidget {
         final cls    = c['class_name']?.toString() ?? '';
         final sec    = c['section_name']?.toString() ?? '';
         final type   = c['student_type']?.toString() ?? '';
-        final attPct = (c['attendance_pct'] as num?)?.toInt() ?? 0;
-        final feeBal = (c['fee_balance'] as num?)?.toDouble() ?? 0;
+        final attPct = toI(c['attendance_pct'], 0);
+        final feeBal = toD(c['fee_balance'], 0);
 
         final initials = () {
           final p = name.trim().split(' ').where((x) => x.isNotEmpty).toList();

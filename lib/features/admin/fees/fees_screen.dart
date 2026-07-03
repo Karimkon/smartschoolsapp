@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Providers ─────────────────────────────────────────────────────────────────
 
@@ -124,8 +125,8 @@ class _AdminFeesScreenState extends ConsumerState<AdminFeesScreen>
                 error: (_, __) => const SizedBox.shrink(),
                 data: (d) {
                   final s       = d['summary'] as Map? ?? {};
-                  final billed  = (s['billed'] as num?)?.toDouble() ?? 0;
-                  final paid    = (s['paid']   as num?)?.toDouble() ?? 0;
+                  final billed  = toD(s['billed'], 0);
+                  final paid    = toD(s['paid']  , 0);
                   final pending = (billed - paid).clamp(0.0, double.infinity);
                   return Row(children: [
                     Expanded(child: _SummaryCard('Billed',    _fmtUGX(billed),  AppColors.primary, Icons.receipt_long_rounded,  0)),
@@ -284,8 +285,8 @@ class _InvoicesTab extends ConsumerWidget {
                   final inv     = Map<String, dynamic>.from(invoices[i] as Map);
                   final status  = inv['status']?.toString() ?? 'pending';
                   final color   = _statusColor(status);
-                  final total   = (inv['total_amount'] as num?)?.toDouble() ?? 0;
-                  final paid    = (inv['paid_amount'] as num?)?.toDouble() ?? 0;
+                  final total   = toD(inv['total_amount'], 0);
+                  final paid    = toD(inv['paid_amount'], 0);
                   final balance = (total - paid).clamp(0.0, double.infinity);
                   final due     = inv['due_date']?.toString() ?? '';
                   final invNo   = inv['invoice_number']?.toString() ?? '';
@@ -471,7 +472,7 @@ class _PaymentsTab extends ConsumerWidget {
               final p       = payments[i] as Map;
               final method  = p['payment_method']?.toString() ?? 'cash';
               final color   = _methodColor(method);
-              final amount  = (p['amount'] as num?)?.toDouble() ?? 0;
+              final amount  = toD(p['amount'], 0);
               final date    = p['payment_date']?.toString() ?? '';
               final receipt = p['receipt_number']?.toString() ?? '';
               final student = p['student_name']?.toString() ?? '';

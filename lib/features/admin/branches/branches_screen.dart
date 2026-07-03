@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -88,8 +89,8 @@ class BranchesScreen extends ConsumerWidget {
                   final phone   = b['phone']?.toString() ?? '';
                   final status  = b['status']?.toString() ?? 'active';
                   final isMain  = b['is_main'] == true || b['is_main'] == 1;
-                  final students = (b['student_count'] as num?)?.toInt() ?? 0;
-                  final teachers = (b['teacher_count'] as num?)?.toInt() ?? 0;
+                  final students = toI(b['student_count'], 0);
+                  final teachers = toI(b['teacher_count'], 0);
                   final color   = _palette[i % _palette.length];
                   final isActive = status.toLowerCase() == 'active';
 

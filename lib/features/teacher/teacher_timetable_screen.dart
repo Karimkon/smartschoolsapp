@@ -86,7 +86,9 @@ class _TeacherTimetableScreenState extends ConsumerState<TeacherTimetableScreen>
             ]),
           ),
           data: (d) {
-            final timetable = d['timetable'] as Map? ?? {};
+            // API sends {} when populated but [] when empty — never hard-cast
+            final rawTt = d['timetable'];
+            final timetable = (rawTt is Map) ? rawTt : const {};
 
             final available = _days.where((day) {
               final slots = timetable[day];

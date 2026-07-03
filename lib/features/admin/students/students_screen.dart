@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Model ──────────────────────────────────────────────────────────────────────
 class StudentModel {
@@ -106,7 +107,7 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
         ),
         title: async.maybeWhen(
           data: (data) {
-            final total = (data['total'] ?? (data['data'] as List?)?.length ?? 0) as num;
+            final total = toI(data['total'] ?? (data['data'] as List?)?.length ?? 0);
             return Row(children: [
               const Text('Students',
                   style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.w700)),
@@ -224,7 +225,7 @@ class _StudentsScreenState extends ConsumerState<StudentsScreen> {
                   final students = (data['data'] as List)
                       .map((j) => StudentModel.fromJson(j as Map<String, dynamic>))
                       .toList();
-                  final total = (data['total'] ?? students.length) as num;
+                  final total = toI(data['total'] ?? students.length);
 
                   if (students.isEmpty) {
                     return const Center(

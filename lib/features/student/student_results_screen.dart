@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
 import '../shared/report_card_pdf_screen.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -179,8 +180,8 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
 
   Widget _buildSummaryCard(Map card) {
     final grade   = card['overall_grade']?.toString() ?? card['grade']?.toString() ?? '—';
-    final avg     = (card['average_score'] as num?)?.toDouble()
-        ?? (card['average'] as num?)?.toDouble() ?? 0;
+    final avg     = toDN(card['average_score'])
+        ?? toD(card['average'], 0);
     final rank    = card['rank']?.toString() ?? card['position']?.toString() ?? '—';
     final total   = card['total_students']?.toString() ?? '—';
     final term    = card['term']?.toString() ?? '—';
@@ -303,7 +304,7 @@ class _StudentResultsScreenState extends ConsumerState<StudentResultsScreen> {
               ?? row['subject_name']?.toString()
               ?? row['subject']?.toString()
               ?? 'Subject';
-          final total   = (row['total'] as num?)?.toDouble() ?? 0;
+          final total   = toD(row['total'], 0);
           final grade   = row['grade']?.toString() ?? '—';
           final remarks = row['remarks']?.toString() ?? '';
           final color      = colors[i % colors.length];

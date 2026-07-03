@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 final dosDashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final res = await ApiService().get('/dashboard');
@@ -94,7 +95,7 @@ class DosDashboard extends ConsumerWidget {
               _AttRow(label: 'Absent',  value: '${stuAtt['absent']  ?? 0}', color: const Color(0xFFDC2626)),
               _AttRow(label: 'Total',   value: '${stuAtt['total']   ?? 0}', color: AppColors.textSecondary),
               const SizedBox(height: 10),
-              _PercentBar(pct: (stuAtt['pct'] as num?)?.toDouble() ?? 0, color: AppColors.primary),
+              _PercentBar(pct: toD(stuAtt['pct'], 0), color: AppColors.primary),
             ]),
           ).animate().fadeIn(delay: 150.ms),
 
@@ -111,7 +112,7 @@ class DosDashboard extends ConsumerWidget {
                 Expanded(child: _AttRow(label: 'Total',   value: '${tchAtt['total']   ?? 0}', color: AppColors.textSecondary)),
               ]),
               const SizedBox(height: 8),
-              _PercentBar(pct: (tchAtt['pct'] as num?)?.toDouble() ?? 0, color: const Color(0xFF7C3AED)),
+              _PercentBar(pct: toD(tchAtt['pct'], 0), color: const Color(0xFF7C3AED)),
               if (absent.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text('Absent Today:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
@@ -144,14 +145,14 @@ class DosDashboard extends ConsumerWidget {
                   SizedBox(width: 90, child: Text(cls['class']?.toString() ?? '', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, overflow: TextOverflow.ellipsis))),
                   const SizedBox(width: 8),
                   Expanded(child: LinearProgressIndicator(
-                    value: ((cls['pct'] as num?)?.toDouble() ?? 0) / 100,
+                    value: (toD(cls['pct'], 0)) / 100,
                     backgroundColor: Colors.grey.shade200,
-                    color: _attColor((cls['pct'] as num?)?.toDouble() ?? 0),
+                    color: _attColor(toD(cls['pct'], 0)),
                     minHeight: 6,
                     borderRadius: BorderRadius.circular(4),
                   )),
                   const SizedBox(width: 8),
-                  Text('${cls['pct']}%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _attColor((cls['pct'] as num?)?.toDouble() ?? 0))),
+                  Text('${cls['pct']}%', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: _attColor(toD(cls['pct'], 0)))),
                 ]),
               )).toList()),
             ).animate().fadeIn(delay: 250.ms),

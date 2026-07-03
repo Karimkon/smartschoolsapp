@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -123,10 +124,10 @@ class _StudentDetailScreenState extends ConsumerState<StudentDetailScreen>
 
     final fee    = data['fee'] as Map? ?? {};
     final att    = data['attendance'] as Map? ?? {};
-    final billed = (fee['billed'] as num?)?.toDouble() ?? 0;
-    final paid   = (fee['paid']   as num?)?.toDouble() ?? 0;
+    final billed = toD(fee['billed'], 0);
+    final paid   = toD(fee['paid']  , 0);
     final balance = billed - paid;
-    final attPct  = (att['pct'] as num?)?.toInt() ?? 0;
+    final attPct  = toI(att['pct'], 0);
 
     return Column(
       children: [
@@ -256,8 +257,8 @@ class _OverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fee    = data['fee'] as Map? ?? {};
-    final billed = (fee['billed'] as num?)?.toDouble() ?? 0;
-    final paid   = (fee['paid']   as num?)?.toDouble() ?? 0;
+    final billed = toD(fee['billed'], 0);
+    final paid   = toD(fee['paid']  , 0);
     final balance = billed - paid;
 
     return ListView(
@@ -361,7 +362,7 @@ class _AttendanceTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final att     = data['attendance'] as Map? ?? {};
     final monthly = (data['monthly_attendance'] as List?) ?? [];
-    final pct     = (att['pct'] as num?)?.toInt() ?? 0;
+    final pct     = toI(att['pct'], 0);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -394,9 +395,9 @@ class _AttendanceTab extends StatelessWidget {
           ...monthly.asMap().entries.map((e) {
             final m = e.value as Map;
             final i = e.key;
-            final present = (m['present'] as num?)?.toInt() ?? 0;
-            final absent  = (m['absent']  as num?)?.toInt() ?? 0;
-            final late    = (m['late']    as num?)?.toInt() ?? 0;
+            final present = toI(m['present'], 0);
+            final absent  = toI(m['absent'] , 0);
+            final late    = toI(m['late']   , 0);
             final total   = present + absent + late;
             final mpct    = total > 0 ? ((present / total) * 100).round() : 0;
             return Padding(

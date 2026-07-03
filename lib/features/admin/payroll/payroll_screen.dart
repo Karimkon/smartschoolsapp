@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../core/widgets/app_widgets.dart';
 import '../../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
@@ -93,11 +94,11 @@ class _AdminPayrollScreenState extends ConsumerState<AdminPayrollScreen> {
             error: (_, __) => const SizedBox.shrink(),
             data: (data) {
               final s = data['summary'] as Map? ?? {};
-              final totalNet   = (s['total_net'] as num?)?.toDouble() ?? 0;
-              final totalPaid  = (s['total_paid'] as num?)?.toDouble() ?? 0;
-              final totalPend  = (s['total_pending'] as num?)?.toDouble() ?? 0;
-              final paidCount  = (s['paid_count'] as num?)?.toInt() ?? 0;
-              final totalCount = (s['total_count'] as num?)?.toInt() ?? 0;
+              final totalNet   = toD(s['total_net'], 0);
+              final totalPaid  = toD(s['total_paid'], 0);
+              final totalPend  = toD(s['total_pending'], 0);
+              final paidCount  = toI(s['paid_count'], 0);
+              final totalCount = toI(s['total_count'], 0);
               return Padding(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
                 child: Row(children: [
@@ -155,10 +156,10 @@ class _AdminPayrollScreenState extends ConsumerState<AdminPayrollScreen> {
                     itemBuilder: (_, i) {
                       final r         = records[i] as Map;
                       final name      = r['staff_name']?.toString() ?? '';
-                      final basic     = (r['basic_salary'] as num?)?.toDouble() ?? 0;
-                      final allowances= (r['allowances'] as num?)?.toDouble() ?? 0;
-                      final deductions= (r['deductions'] as num?)?.toDouble() ?? 0;
-                      final net       = (r['net_salary'] as num?)?.toDouble() ?? (basic + allowances - deductions);
+                      final basic     = toD(r['basic_salary'], 0);
+                      final allowances= toD(r['allowances'], 0);
+                      final deductions= toD(r['deductions'], 0);
+                      final net       = toDN(r['net_salary']) ?? (basic + allowances - deductions);
                       final isPaid    = r['status']?.toString().toLowerCase() == 'paid';
                       final color     = _palette[i % _palette.length];
 

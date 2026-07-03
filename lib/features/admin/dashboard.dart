@@ -7,6 +7,7 @@ import '../../app/theme/app_colors.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/widgets/app_widgets.dart';
 import '../../core/services/api_service.dart';
+import 'package:smartschools/core/utils/safe_num.dart';
 
 // ── Data provider ─────────────────────────────────────────────────────────────
 final adminDashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
@@ -43,7 +44,7 @@ class AdminDashboard extends ConsumerWidget {
     final events    = (data['upcoming_events'] as List).cast<Map>();
     final enrollment= (data['enrollment'] as List).cast<Map>();
     final feeData   = (data['fee_breakdown'] as List).cast<Map>();
-    final attendance= (data['attendance_today'] as num).toInt();
+    final attendance= toI(data['attendance_today']);
 
     return RefreshIndicator(
       color: AppColors.primary,
@@ -167,7 +168,7 @@ class AdminDashboard extends ConsumerWidget {
                             height: 100,
                             child: PieChart(PieChartData(
                               sections: feeData.map((d) => PieChartSectionData(
-                                value: (d['value'] as num).toDouble(),
+                                value: toD(d['value']),
                                 color: Color(d['color'] as int),
                                 radius: 20, showTitle: false,
                               )).toList(),
@@ -212,7 +213,7 @@ class AdminDashboard extends ConsumerWidget {
                       height: 160,
                       child: BarChart(BarChartData(
                         alignment: BarChartAlignment.spaceAround,
-                        maxY: (enrollment.map((e) => (e['count'] as num).toDouble()).reduce((a, b) => a > b ? a : b) * 1.3).clamp(1.0, double.infinity),
+                        maxY: (enrollment.map((e) => toD(e['count'])).reduce((a, b) => a > b ? a : b) * 1.3).clamp(1.0, double.infinity),
                         barTouchData: BarTouchData(enabled: false),
                         titlesData: FlTitlesData(
                           show: true,
@@ -237,7 +238,7 @@ class AdminDashboard extends ConsumerWidget {
                         barGroups: enrollment.asMap().entries.map((e) => BarChartGroupData(
                           x: e.key,
                           barRods: [BarChartRodData(
-                            toY: (e.value['count'] as num).toDouble(),
+                            toY: toD(e.value['count']),
                             gradient: AppColors.primaryGradient,
                             width: 22, borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                           )],
